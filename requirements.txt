@@ -1,0 +1,12 @@
+# CPU-only stack for the offline conformal infrastructure (no verl / vllm / GPU).
+# Unpinned for cross-platform (Windows / Mac / Colab) during development.
+# Pin exact versions at the Week-6 freeze.
+pandas
+numpy
+scikit-learn
+lightgbm
+scipy
+matplotlib
+jupyter
+pytest
+huggingface_hub

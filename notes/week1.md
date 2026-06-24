@@ -25,4 +25,9 @@
 - pip stack: pandas numpy scikit-learn lightgbm scipy matplotlib jupyter pytest huggingface_hub.
 
 ## Status / blockers
--
+- [done] Windows env: Miniconda + conda-forge `budget` env (py 3.12) + CPU stack.
+- [done] Repo scaffolded, committed, pushed → github.com/andrew-somerset/budget-guard (private).
+- [done] `extract.py` validated on `_smoke` (3 samples) and on real Sokoban dialogues (123 rollouts → 355 prefix samples); invariants pass.
+- [done] HF dataset reachable (public, unauthenticated); manifest + smallest Sokoban dialogues (9.6 MB) downloaded to `data/bagen_hf/` (gitignored).
+- [todo — you] Readings + 3 self-check answers; Colab fidelity check (extractor `y_t` vs official); 1 reproduced BAGEN number.
+- [note] `extract.py` uses raw per-turn totals; if the Colab diff shows mismatches on real data, port `_convert_request_usage_to_turn_usage` (history-excluded usage).

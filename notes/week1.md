@@ -24,6 +24,19 @@
 - conda-forge python shipped without pip → bootstrapped with `python -m ensurepip --upgrade`.
 - pip stack: pandas numpy scikit-learn lightgbm scipy matplotlib jupyter pytest huggingface_hub.
 
+## Environment record (Mac — personal machine)
+- miniforge3 at `~/miniforge3` (osx-arm64, Apple Silicon); conda 25.3.1.
+- env `budget` (python 3.12.13) created via conda-forge (`--override-channels`).
+- pip stack installed from `requirements.txt`: pandas 3.0.3, numpy 2.5.0, scikit-learn 1.9.0,
+  lightgbm 4.6.0, scipy 1.18.0, matplotlib 3.11.0, jupyter/jupyterlab 4.6.0, pytest 9.1.1,
+  huggingface_hub 1.21.0.
+- BAGEN repo cloned (depth=1) at `~/budget-guard/BAGEN` (sibling of `budget-guard/`).
+- HF estimation data downloaded to `data/bagen_hf/` (gitignored): manifest + all 24 estimation dirs.
+- Smoke test passes: `python budget_guard/extract.py` → 3 prefix samples, 0 invariant failures.
+- Note: `data/bagen_hf/estimation/` is turn-level model-prediction records, NOT the raw rollout
+  dialogue JSON that `extract.py` expects. Use BAGEN `_smoke/sokoban_dialogues.json` or a separate
+  raw-rollouts download for the extractor.
+
 ## Status / blockers
 - [done] Windows env: Miniconda + conda-forge `budget` env (py 3.12) + CPU stack.
 - [done] Repo scaffolded, committed, pushed → github.com/andrew-somerset/budget-guard (private).

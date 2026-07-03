@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import asdict, dataclass
 from typing import Any, Optional
 
@@ -42,6 +43,144 @@ def resolve_turn_total(turn: dict) -> Optional[int]:
     if inp is not None or out is not None:
         return int(inp or 0) + int(out or 0)
     return _safe_int(turn.get("actual_token"))
+
+
+def _resolve_turn_input_tokens(turn: dict) -> Optional[int]:
+    return _safe_int(turn.get("api_input_tokens")) or _safe_int(turn.get("input_tokens"))
+
+
+def _resolve_turn_output_tokens(turn: dict) -> Optional[int]:
+    value = _safe_int(turn.get("api_output_tokens"))
+    if value is None:
+        value = _safe_int(turn.get("output_tokens"))
+    if value is None:
+        value = _safe_int(turn.get("actual_token"))
+    return value
+
+
+def _rough_text_token_count(text: str) -> int:
+    if not text:
+        return 0
+    return len(re.findall(r"\w+|[^\w\s]", text, re.UNICODE))
+
+
+def _resolve_turn_reasoning_tokens(turn: dict) -> Optional[int]:
+    interactions = turn.get("api_interactions")
+    if not isinstance(interactions, list):
+        return None
+    reasoning_total, found = 0, False
+    for interaction in interactions:
+        if not isinstance(interaction, dict):
+            continue
+        usage = interaction.get("usage")
+        raw_usage = usage.get("raw") if isinstance(usage, dict) else None
+        if not isinstance(raw_usage, dict):
+            continue
+        for parent_key in ("output_tokens_details", "completion_tokens_details"):
+            parent = raw_usage.get(parent_key)
+            if isinstance(parent, dict):
+                value = _safe_int(parent.get("reasoning_tokens"))
+                if value is not None:
+                    reasoning_total += max(0, int(value))
+                    found = True
+                    break
+    return reasoning_total if found else None
+
+
+def _estimate_turn_visible_output_tokens(turn: dict) -> Optional[int]:
+    """Output tokens that land in the visible transcript (reasoning excluded)."""
+    output_tokens = _resolve_turn_output_tokens(turn)
+    if output_tokens is None:
+        return None
+    output_tokens_int = max(0, int(output_tokens))
+    reasoning_tokens = _resolve_turn_reasoning_tokens(turn)
+    if reasoning_tokens is not None:
+        return max(0, output_tokens_int - int(reasoning_tokens))
+    raw_response = str(turn.get("raw_response") or turn.get("raw_generation") or "").strip()
+    parsed_response = str(turn.get("parsed_response") or "").strip()
+    if not raw_response or not parsed_response or raw_response == parsed_response:
+        return output_tokens_int
+    raw_estimate = _rough_text_token_count(raw_response)
+    parsed_estimate = _rough_text_token_count(parsed_response)
+    if raw_estimate <= 0 or parsed_estimate <= 0:
+        return output_tokens_int
+    visible_ratio = min(1.0, float(parsed_estimate) / float(raw_estimate))
+    return max(0, int(round(float(output_tokens_int) * visible_ratio)))
+
+
+def _turn_usage_detail(turn: dict) -> dict:
+    """Per-request usage {input, output, total}. Mirrors ``_resolve_turn_token_usage_detail``."""
+    input_tokens = _resolve_turn_input_tokens(turn)
+    output_tokens = _resolve_turn_output_tokens(turn)
+    total_tokens = resolve_turn_total(turn)
+    if total_tokens is not None:
+        if input_tokens is None and output_tokens is not None and int(output_tokens) <= int(total_tokens):
+            input_tokens = int(total_tokens) - int(output_tokens)
+        if output_tokens is None and input_tokens is not None and int(input_tokens) <= int(total_tokens):
+            output_tokens = int(total_tokens) - int(input_tokens)
+    if total_tokens is None and (input_tokens is not None or output_tokens is not None):
+        total_tokens = int(input_tokens or 0) + int(output_tokens or 0)
+    return {"input_tokens": input_tokens, "output_tokens": output_tokens, "total_tokens": total_tokens}
+
+
+def _request_usage_input_includes_history(
+    request_details: list[dict], visible_output_tokens: list[Optional[int]]
+) -> bool:
+    """Majority vote: does each request's input re-count the prior transcript?"""
+    comparable, history_votes = 0, 0
+    prev_request_input: Optional[int] = None
+    for idx, detail in enumerate(request_details):
+        current_input = detail.get("input_tokens")
+        if prev_request_input is not None and current_input is not None:
+            comparable += 1
+            baseline = int(prev_request_input)
+            prev_visible = visible_output_tokens[idx - 1]
+            if prev_visible is not None:
+                baseline += int(prev_visible)
+            if int(current_input) >= baseline:
+                history_votes += 1
+        if current_input is not None:
+            prev_request_input = int(current_input)
+    if comparable == 0:
+        return False
+    return history_votes * 2 >= comparable
+
+
+def convert_request_usage_to_turn_usage(
+    request_details: list[dict], visible_output_tokens: list[Optional[int]]
+) -> list[dict]:
+    """History-excluded per-turn usage. Faithful port of
+    ``_convert_request_usage_to_turn_usage`` (BAGEN default ``turn_usage_mode``)."""
+    visible = list(visible_output_tokens)
+    visible.extend([None] * (len(request_details) - len(visible)))
+    input_includes_history = _request_usage_input_includes_history(request_details, visible)
+
+    out: list[dict] = []
+    prev_request_input: Optional[int] = None
+    for idx, detail in enumerate(request_details):
+        request_input = detail.get("input_tokens")
+        output_tokens = detail.get("output_tokens")
+        request_total = detail.get("total_tokens")
+        if input_includes_history and request_input is not None and prev_request_input is not None:
+            baseline = int(prev_request_input)
+            prev_visible = visible[idx - 1]
+            if prev_visible is not None:
+                baseline += int(prev_visible)
+            input_tokens = max(0, int(request_input) - baseline)
+        else:
+            input_tokens = request_input
+        if input_tokens is not None and output_tokens is not None:
+            total_tokens = int(input_tokens) + int(output_tokens)
+        elif not input_includes_history:
+            total_tokens = request_total
+        elif input_tokens is not None:
+            total_tokens = int(input_tokens)
+        else:
+            total_tokens = None
+        out.append({"input_tokens": input_tokens, "output_tokens": output_tokens, "total_tokens": total_tokens})
+        if request_input is not None:
+            prev_request_input = int(request_input)
+    return out
 
 
 def _assistant_content(turn: dict) -> str:
@@ -93,7 +232,10 @@ def flatten_to_samples(rollouts: list[dict], max_ctx: int = DEFAULT_MAX_CTX) -> 
         kept = [turn for turn in kept if _assistant_content(turn)]
         if len(kept) < 2:
             continue
-        totals = [int(resolve_turn_total(turn) or 0) for turn in kept]
+        request_details = [_turn_usage_detail(turn) for turn in kept]
+        visible_output = [_estimate_turn_visible_output_tokens(turn) for turn in kept]
+        turn_details = convert_request_usage_to_turn_usage(request_details, visible_output)
+        totals = [int(detail["total_tokens"] or 0) for detail in turn_details]
         cumulative, running = [], 0
         for value in totals:
             running += value

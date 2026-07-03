@@ -8,14 +8,23 @@
 3. Why split by rollout, never by prefix?
    -
 
-## Reproduced BAGEN number (from Colab DRY_RUN / API eval)
-- env: sokoban
-- metric:
-- value:
-- date:
+## Reproduced BAGEN number (done LOCALLY from HF estimation records — no Colab needed)
+- env: sokoban (claude-opus-4.7 run)
+- metric: `remaining_token_interval_coverage_rate` (agent's own interval contains true remaining tokens)
+- value: **0.5132** (355 samples); recomputed from per-sample `metrics.remaining_token_interval_contains_actual` → identical.
+- across all 19 downloaded runs with this metric: mean **0.2742**, min 0.0249 (qwen3-235b searchr1), max 0.5239
+  (sonnet-4.6 sokoban) — every run far below a 0.90 target. Motivating gap confirmed.
+- date: 2026-07-03
 
-## Colab fidelity check
-- extractor `y_t` vs official `actual_remaining_total_tokens`: mismatches = ___ (target 0)
+## Fidelity check (done LOCALLY — the HF estimation records carry official ground truth)
+- The official per-sample records (`results[*].ground_truth.actual_remaining_total_tokens`) let us diff
+  without running the Colab harness.
+- Raw dialogues: `origin/sokoban-origin-claude-opus-4.7-low-thinking-128-main/..._dialogues.json` (9.6 MB).
+- First diff: all 355 sample_ids aligned, but **355/355 y mismatches** — extract.py used raw request
+  totals (input re-counts history each turn), official default is `turn_usage_mode="turn_excluding_history"`.
+- Fix: ported `_convert_request_usage_to_turn_usage` (+ visible-output estimate, history-vote heuristic)
+  from `ragen/env/token_estimation/env.py` into extract.py.
+- After port: extractor `y_t` vs official `actual_remaining_total_tokens`: mismatches = **0 / 355** (target 0). ✅
 
 ## Environment record (Windows work machine)
 - Miniconda user-scope at `%USERPROFILE%\miniconda3` (conda 26.3.2), JustMe, AddToPath=0.
@@ -42,5 +51,16 @@
 - [done] Repo scaffolded, committed, pushed → github.com/andrew-somerset/budget-guard (private).
 - [done] `extract.py` validated on `_smoke` (3 samples) and on real Sokoban dialogues (123 rollouts → 355 prefix samples); invariants pass.
 - [done] HF dataset reachable (public, unauthenticated); manifest + smallest Sokoban dialogues (9.6 MB) downloaded to `data/bagen_hf/` (gitignored).
-- [todo — you] Readings + 3 self-check answers; Colab fidelity check (extractor `y_t` vs official); 1 reproduced BAGEN number.
-- [note] `extract.py` uses raw per-turn totals; if the Colab diff shows mismatches on real data, port `_convert_request_usage_to_turn_usage` (history-excluded usage).
+- [done 2026-07-03] Mac env repair: lightgbm failed to load (missing libomp) → fixed via
+  `conda install -n budget -c conda-forge llvm-openmp`. Full CPU stack imports clean.
+- [done 2026-07-03] Ported history-excluded usage (`turn_excluding_history`) into extract.py;
+  fidelity diff vs official ground truth = **0/355 mismatches**. Week-1 "done when" met.
+- [done 2026-07-03] Extractor also validated on all 5 SWE-bench dialogue sets:
+  316 rollouts → 9,325 prefix samples, 0 invariant failures (run with max_ctx=512_000).
+- [done 2026-07-03] Reproduced BAGEN coverage numbers (see above): 0.513 sokoban-opus-4.7;
+  mean 0.274 across 19 runs.
+- [todo — you] Readings + 3 self-check answers (§ top of this file).
+- [note] Colab is now only needed for the optional official-harness DRY_RUN sanity pass
+  (nice-to-have), not for the fidelity check — that's done.
+- [next → Week 2] `features.py`, `split.py` (group split by rollout), `conformal.py`
+  (split-conformal + CQR), `run_gap.py` → `figures/gap_sokoban.png` showing naive under-coverage.

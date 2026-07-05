@@ -155,6 +155,41 @@ def spci(
     return _clip_nonneg(lo), hi, {"window": window}
 
 
+def mondrian_cqr(
+    X_train, y_train, X_cal, y_cal, k_cal, X_test, k_test,
+    alpha=DEFAULT_ALPHA,
+    bucket_edges: tuple[int, ...] = (2, 3),
+    min_bucket: int = 10,
+):
+    """Group-conditional (Mondrian) CQR bucketed by turn depth k.
+
+    One qhat per depth bucket (k=1 / k=2 / k>=3 by default) instead of a global one —
+    the fix for early-turn under-coverage: validity holds per bucket, not just
+    marginally. Buckets with fewer than ``min_bucket`` CAL scores fall back to the
+    global qhat.
+    """
+    mlo, mhi = _fit_cqr(X_train, y_train, alpha)
+    cal_scores = _cqr_scores(mlo.predict(X_cal), mhi.predict(X_cal), y_cal)
+    k_cal = np.asarray(k_cal)
+    k_test = np.asarray(k_test)
+    cal_bucket = np.digitize(k_cal, bucket_edges)
+    test_bucket = np.digitize(k_test, bucket_edges)
+
+    global_qhat = _finite_sample_quantile(cal_scores, alpha)
+    qhat_by_bucket = {}
+    for b in np.unique(cal_bucket):
+        scores = cal_scores[cal_bucket == b]
+        qhat_by_bucket[b] = (
+            _finite_sample_quantile(scores, alpha) if len(scores) >= min_bucket else global_qhat
+        )
+
+    qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
+    qhats = np.array([qhat_by_bucket.get(b, global_qhat) for b in test_bucket])
+    lo = qlo_test - qhats
+    hi = qhi_test + qhats
+    return _clip_nonneg(lo), hi, {"qhat_by_bucket": qhat_by_bucket}
+
+
 def constant_quantile(y_cal, n_test: int, alpha=DEFAULT_ALPHA):
     """No-model baseline: the same empirical [alpha/2, 1-alpha/2] interval of the
     calibration y's for every test point. If the guard barely beats this, the

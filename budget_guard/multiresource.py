@@ -89,19 +89,54 @@ def joint_intervals(
 ) -> dict:
     """Per-resource CQR intervals under the given correction scheme.
 
-    Returns {resource: (lo, hi)} on the test rows plus the per-margin alpha used.
+    - ``independent``: each margin conformalized at alpha (joint under-covers).
+    - ``bonferroni``: each margin at alpha/3 (union bound; conservative).
+    - ``copula``: one shared rank level u*, the smallest for which the CAL samples'
+      *joint* event {all three scores within their u-quantiles} holds with frequency
+      >= 1-alpha (+1 corrected). Adapts to the actual dependence between resources,
+      so it sits between independent and Bonferroni in width while keeping >= 1-alpha
+      joint coverage on CAL.
+
+    Returns {resource: (lo, hi)} on the test rows plus the per-margin level used.
     """
-    per_margin_alpha = alpha / len(RESOURCES) if scheme == "bonferroni" else alpha
+    from .conformal import _cqr_scores, _fit_cqr
+
     X = build_features(df)
     tr, ca, te = masks["train"], masks["cal"], masks["test"]
-    out = {}
+
+    if scheme in ("independent", "bonferroni"):
+        per_margin_alpha = alpha / len(RESOURCES) if scheme == "bonferroni" else alpha
+        out = {}
+        for res in RESOURCES:
+            y = df[f"y_{res}"].to_numpy(dtype=float)
+            lo, hi, _ = cqr_split(X[tr], y[tr], X[ca], y[ca], X[te], alpha=per_margin_alpha)
+            out[res] = (lo, hi)
+        return {"intervals": out, "per_margin_level": 1 - per_margin_alpha}
+
+    assert scheme == "copula", scheme
+    cal_scores, test_preds = {}, {}
     for res in RESOURCES:
         y = df[f"y_{res}"].to_numpy(dtype=float)
-        lo, hi, _ = cqr_split(
-            X[tr], y[tr], X[ca], y[ca], X[te], alpha=per_margin_alpha
-        )
-        out[res] = (lo, hi)
-    return {"intervals": out, "per_margin_alpha": per_margin_alpha}
+        mlo, mhi = _fit_cqr(X[tr], y[tr], alpha)
+        cal_scores[res] = _cqr_scores(mlo.predict(X[ca]), mhi.predict(X[ca]), y[ca])
+        test_preds[res] = (mlo.predict(X[te]), mhi.predict(X[te]))
+
+    n = int(ca.sum())
+    score_mat = np.column_stack([cal_scores[res] for res in RESOURCES])
+    # smallest shared level u whose per-margin u-quantiles jointly cover >= 1-alpha on CAL
+    u_star = 1.0
+    for u in np.linspace(0.90, 1.0, 101):
+        qhats = np.quantile(score_mat, u, axis=0, method="higher")
+        joint_ok = (score_mat <= qhats).all(axis=1).sum()
+        if (joint_ok + 1) / (n + 1) >= 1 - alpha:
+            u_star = float(u)
+            break
+    qhats = np.quantile(score_mat, u_star, axis=0, method="higher")
+    out = {
+        res: (np.maximum(test_preds[res][0] - qhats[i], 0.0), test_preds[res][1] + qhats[i])
+        for i, res in enumerate(RESOURCES)
+    }
+    return {"intervals": out, "per_margin_level": u_star}
 
 
 def joint_coverage(df: pd.DataFrame, test_mask: np.ndarray, intervals: dict) -> dict:

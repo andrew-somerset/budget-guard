@@ -40,7 +40,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     rows = []
     for seed in seeds:
         masks = group_split(df, seed=seed)
-        for scheme in ("independent", "bonferroni"):
+        for scheme in ("independent", "bonferroni", "copula"):
             result = joint_intervals(df, masks, alpha=alpha, scheme=scheme)
             cov = joint_coverage(df, masks["test"], result["intervals"])
             rows.append({"scheme": scheme, "seed": seed, **cov})
@@ -61,17 +61,18 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    labels = ["agent self-report", "independent", "bonferroni"]
-    colors = {"agent self-report": GRAY, "independent": AQUA, "bonferroni": YELLOW}
+    labels = ["agent self-report", "independent", "bonferroni", "copula"]
+    colors = {"agent self-report": GRAY, "independent": AQUA, "bonferroni": YELLOW,
+              "copula": BLUE}
     cats = list(RESOURCES) + ["joint"]
     xs = np.arange(len(cats))
-    width = 0.26
+    width = 0.21
 
     fig, ax = plt.subplots(figsize=(9, 4.4), constrained_layout=True)
     for i, scheme in enumerate(labels):
         sel = table[table["scheme"] == scheme].iloc[0]
         vals = [sel[c] for c in cats]
-        offset = (i - 1) * width
+        offset = (i - (len(labels) - 1) / 2) * width
         bars = ax.bar(xs + offset, vals, width=width - 0.03, color=colors[scheme], label=scheme)
         for bar, v in zip(bars, vals):
             ax.text(bar.get_x() + bar.get_width() / 2, v + 0.012, f"{v:.2f}",

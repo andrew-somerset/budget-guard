@@ -27,7 +27,13 @@ from .conformal import (
 )
 from .data import ENVS, load_env
 from .features import build_xy
-from .metrics import frac_unbounded, marginal_coverage, median_width, normalized_width
+from .metrics import (
+    frac_unbounded,
+    marginal_coverage,
+    median_width,
+    normalized_width,
+    rollout_bootstrap_ci,
+)
 from .split import group_split
 
 BLUE, AQUA, YELLOW, VIOLET, GRAY = "#2a78d6", "#1baf7a", "#eda100", "#4a3aa7", "#8B93A1"
@@ -66,15 +72,19 @@ def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]
     if baseline is not None:
         rows.append(
             {"env": env, "method": "agent self-report", "coverage": baseline,
+             "cov_ci90_lo": np.nan, "cov_ci90_hi": np.nan,
              "median_width": np.nan, "normalized_width": np.nan,
              "frac_unbounded": np.nan, "n_test": np.nan, "gamma": np.nan}
         )
     for name, (lo, hi) in intervals.items():
+        ci_lo, ci_hi = rollout_bootstrap_ci(yte, lo, hi, groups[te])
         rows.append(
             {
                 "env": env,
                 "method": name,
                 "coverage": marginal_coverage(yte, lo, hi),
+                "cov_ci90_lo": ci_lo,
+                "cov_ci90_hi": ci_hi,
                 "median_width": median_width(lo, hi),
                 "normalized_width": normalized_width(yte, lo, hi, agg="median"),
                 "frac_unbounded": frac_unbounded(hi),
@@ -99,6 +109,8 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
         .agg(
             coverage=("coverage", "mean"),
             coverage_std=("coverage", "std"),
+            cov_ci90_lo=("cov_ci90_lo", "mean"),
+            cov_ci90_hi=("cov_ci90_hi", "mean"),
             median_width=("median_width", "mean"),
             normalized_width=("normalized_width", "mean"),
             frac_unbounded=("frac_unbounded", "mean"),

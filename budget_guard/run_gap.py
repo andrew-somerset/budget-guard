@@ -16,7 +16,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-from .conformal import DEFAULT_ALPHA, cqr_split, split_conformal_absres
+from .conformal import DEFAULT_ALPHA, cqr_split, mondrian_cqr, split_conformal_absres
 from .data import load_env
 from .features import build_xy
 from .metrics import marginal_coverage, mean_width, normalized_width
@@ -36,6 +36,11 @@ def run(env: str = "sokoban", seed: int = 0, alpha: float = DEFAULT_ALPHA):
     for name, fn in [("split-absres", split_conformal_absres), ("split-CQR", cqr_split)]:
         lo, hi, _ = fn(X[tr], y[tr], X[ca], y[ca], X[te], alpha=alpha)
         results[name] = {"lo": lo, "hi": hi}
+    lo, hi, _ = mondrian_cqr(
+        X[tr], y[tr], X[ca], y[ca], df.loc[ca, "k"].to_numpy(),
+        X[te], df.loc[te, "k"].to_numpy(), alpha=alpha,
+    )
+    results["Mondrian-CQR"] = {"lo": lo, "hi": hi}
 
     rows = []
     k_test = df.loc[te, "k"].to_numpy()
@@ -72,7 +77,7 @@ def run(env: str = "sokoban", seed: int = 0, alpha: float = DEFAULT_ALPHA):
     import matplotlib.pyplot as plt
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), constrained_layout=True)
-    colors = {"split-absres": BLUE, "split-CQR": AQUA}
+    colors = {"split-absres": BLUE, "split-CQR": AQUA, "Mondrian-CQR": VIOLET}
 
     ax = axes[0]
     names = list(results)

@@ -33,13 +33,11 @@ def fit_feasibility(X_train, feasible_train):
 
 
 def _rollout_min_scores(df: pd.DataFrame, scores: np.ndarray) -> pd.DataFrame:
-    """Per rollout: min feasibility score over its prefixes + labels/costs."""
-    tmp = df[["rollout_index", "can_finish", "tokens_so_far", "total_rollout_tokens", "k"]].copy()
+    """Per rollout: min feasibility score over its prefixes + feasibility label."""
+    tmp = df[["rollout_index", "can_finish"]].copy()
     tmp["score"] = scores
     return tmp.groupby("rollout_index").agg(
-        min_score=("score", "min"),
-        feasible=("can_finish", "first"),
-        total_tokens=("total_rollout_tokens", "first"),
+        min_score=("score", "min"), feasible=("can_finish", "first")
     )
 
 
@@ -57,18 +55,23 @@ def calibrate_threshold(df_cal: pd.DataFrame, scores_cal: np.ndarray, delta: flo
     return float(feas[min(rank, n) - 1])
 
 
-def evaluate_stopping(df_test: pd.DataFrame, scores_test: np.ndarray, tau: float) -> dict:
-    """Apply 'abort at first prefix with score < tau' to each test rollout."""
-    tmp = df_test[["rollout_index", "k", "can_finish", "tokens_so_far", "total_rollout_tokens"]].copy()
-    tmp["score"] = scores_test
-
+def _run_rule(
+    df_test: pd.DataFrame,
+    trigger: np.ndarray,
+    spent_col: str = "tokens_so_far",
+    total_col: str = "total_rollout_tokens",
+    order_col: str = "k",
+) -> dict:
+    """Score any 'abort at first flagged prefix' rule on test rollouts."""
+    tmp = df_test[["rollout_index", order_col, "can_finish", spent_col, total_col]].copy()
+    tmp["trigger"] = np.asarray(trigger)
     n_feasible = n_doomed = false_aborts = 0
     doomed_total = doomed_saved = 0.0
-    for _, g in tmp.sort_values("k").groupby("rollout_index"):
+    for _, g in tmp.sort_values(order_col).groupby("rollout_index"):
         feasible = bool(g["can_finish"].iloc[0])
-        total = float(g["total_rollout_tokens"].iloc[0])
-        below = g[g["score"] < tau]
-        aborted = len(below) > 0
+        total = float(g[total_col].iloc[0])
+        flagged = g[g["trigger"]]
+        aborted = len(flagged) > 0
         if feasible:
             n_feasible += 1
             false_aborts += int(aborted)
@@ -76,14 +79,18 @@ def evaluate_stopping(df_test: pd.DataFrame, scores_test: np.ndarray, tau: float
             n_doomed += 1
             doomed_total += total
             if aborted:
-                doomed_saved += total - float(below["tokens_so_far"].iloc[0])
+                doomed_saved += total - float(flagged[spent_col].iloc[0])
     return {
-        "tau": tau,
         "false_abort_rate": false_aborts / n_feasible if n_feasible else np.nan,
         "doomed_savings_frac": doomed_saved / doomed_total if doomed_total else np.nan,
         "n_feasible": n_feasible,
         "n_doomed": n_doomed,
     }
+
+
+def evaluate_stopping(df_test: pd.DataFrame, scores_test: np.ndarray, tau: float, **cols) -> dict:
+    """Apply 'abort at first prefix with score < tau' to each test rollout."""
+    return {"tau": tau, **_run_rule(df_test, np.asarray(scores_test) < tau, **cols)}
 
 
 def fit_remaining_regressor(X_train, y_train):
@@ -155,26 +162,9 @@ def evaluate_interval_stopping(
     }
 
 
-def hard_cap_baseline(df_test: pd.DataFrame, cap_tokens: float) -> dict:
-    """Heuristic: abort when tokens_so_far exceeds a fixed cap."""
-    tmp = df_test[["rollout_index", "k", "can_finish", "tokens_so_far", "total_rollout_tokens"]]
-    n_feasible = n_doomed = false_aborts = 0
-    doomed_total = doomed_saved = 0.0
-    for _, g in tmp.sort_values("k").groupby("rollout_index"):
-        feasible = bool(g["can_finish"].iloc[0])
-        total = float(g["total_rollout_tokens"].iloc[0])
-        over = g[g["tokens_so_far"] > cap_tokens]
-        aborted = len(over) > 0
-        if feasible:
-            n_feasible += 1
-            false_aborts += int(aborted)
-        else:
-            n_doomed += 1
-            doomed_total += total
-            if aborted:
-                doomed_saved += total - float(over["tokens_so_far"].iloc[0])
-    return {
-        "cap_tokens": cap_tokens,
-        "false_abort_rate": false_aborts / n_feasible if n_feasible else np.nan,
-        "doomed_savings_frac": doomed_saved / doomed_total if doomed_total else np.nan,
-    }
+def hard_cap_baseline(
+    df_test: pd.DataFrame, cap: float, spent_col: str = "tokens_so_far", **cols
+) -> dict:
+    """Heuristic: abort when spend-so-far exceeds a fixed cap."""
+    trigger = df_test[spent_col].to_numpy(dtype=float) > cap
+    return {"cap_tokens": cap, **_run_rule(df_test, trigger, spent_col=spent_col, **cols)}

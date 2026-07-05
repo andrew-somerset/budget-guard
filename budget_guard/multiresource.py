@@ -33,32 +33,53 @@ _FEATURES = (
 )
 
 
-def load_warehouse(path: str) -> pd.DataFrame:
+def load_warehouse(path: str, keep_censored: bool = False) -> pd.DataFrame:
     """One row per prefix sample: legal features + the three targets.
 
     Samples with ``can_finish=False`` carry no remaining-resource labels (the run
-    cannot complete within budget, so "remaining to completion" is undefined) —
-    they are censored, not missing at random. C2 regresses on the feasible half;
-    the censored half is the economic-stopping (C3) signal.
+    cannot complete within budget, so "remaining to completion" is undefined by
+    BAGEN's convention) — but their realized totals ARE recorded, so with
+    ``keep_censored=True`` the rows come back flagged ``censored`` with
+    ``y_*`` recovered from ``actual_total_* − spent_so_far``. That recoverability
+    is what makes Warehouse the mask-and-measure testbed for censored conformal.
+
+    Spend-so-far: exact for time (= completed_weeks); cost/warehouse are
+    interpolated as completed_weeks/total_weeks × total (stated approximation).
     """
     with open(path, "r", encoding="utf-8") as handle:
         payload = json.load(handle)
     rows = []
-    censored = 0
     for record in payload["results"]:
         gt = record["ground_truth"]
-        if gt.get(f"actual_remaining_{RESOURCES[0]}") is None:
-            censored += 1
+        is_censored = gt.get(f"actual_remaining_{RESOURCES[0]}") is None
+        if is_censored and not keep_censored:
             continue
-        row = {"rollout_index": record["rollout_index"], "sample_id": record["sample_id"]}
+        row = {
+            "rollout_index": record["rollout_index"],
+            "sample_id": record["sample_id"],
+            "censored": is_censored,
+            "can_finish": bool(gt.get("actual_can_finish")),
+        }
         for feat in _FEATURES:
             row[feat] = gt[feat]
+        total_weeks = gt.get("actual_total_time_weeks")
+        frac = (gt["completed_weeks"] / total_weeks) if total_weeks else np.nan
         for res in RESOURCES:
-            row[f"y_{res}"] = gt[f"actual_remaining_{res}"]
+            total = gt.get(f"actual_total_{res}")
+            if res == "time_weeks":
+                spent = gt["completed_weeks"]
+            else:
+                spent = frac * total if total is not None else np.nan
+            row[f"total_{res}"] = total
+            row[f"spent_{res}"] = spent
+            remaining = gt.get(f"actual_remaining_{res}")
+            if remaining is None and total is not None and np.isfinite(spent):
+                remaining = max(0.0, total - spent)  # recovered truth for censored rows
+            row[f"y_{res}"] = remaining
         rows.append(row)
     df = pd.DataFrame(rows)
-    assert df[[f"y_{r}" for r in RESOURCES]].notna().all().all()
-    df.attrs["censored_samples"] = censored
+    if not keep_censored:
+        assert df[[f"y_{r}" for r in RESOURCES]].notna().all().all()
     return df
 
 

@@ -15,10 +15,14 @@ LEAK_COLUMNS = frozenset(
 )
 
 
-def build_xy(df: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
+def build_xy(
+    df: pd.DataFrame, agent_est: pd.DataFrame | None = None
+) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
     """Return (X, y, groups) with only turn-k-legal features.
 
     groups = rollout_index, for group-aware splitting (never split by prefix).
+    ``agent_est`` (sample_id, agent_lo, agent_hi) adds the agent's own per-turn
+    self-estimate as features; missing estimates become NaN (LGBM handles them).
     """
     per = df["per_turn_total"]
     X = pd.DataFrame(index=df.index)
@@ -32,6 +36,14 @@ def build_xy(df: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
     X["max_turn_tokens"] = per.map(lambda v: float(np.max(v)))
     X["last3_mean_tokens"] = per.map(lambda v: float(np.mean(v[-3:])))
     X["turn_trend"] = X["last_turn_tokens"] - X["mean_turn_tokens"]
+
+    if agent_est is not None:
+        est = df[["sample_id"]].merge(agent_est, on="sample_id", how="left")
+        est.index = df.index
+        X["agent_lo"] = est["agent_lo"]
+        X["agent_hi"] = est["agent_hi"]
+        X["agent_mid"] = (est["agent_lo"] + est["agent_hi"]) / 2
+        X["agent_width"] = est["agent_hi"] - est["agent_lo"]
 
     leaked = set(X.columns) & LEAK_COLUMNS
     assert not leaked, f"leak features present: {leaked}"

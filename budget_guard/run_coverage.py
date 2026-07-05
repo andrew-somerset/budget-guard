@@ -25,7 +25,8 @@ from .conformal import (
     split_conformal_absres,
     tune_gamma,
 )
-from .data import ENVS, load_env
+from .conformal import _finite_sample_quantile
+from .data import ENVS, load_agent_estimates, load_env
 from .features import build_xy
 from .metrics import (
     frac_unbounded,
@@ -37,12 +38,14 @@ from .metrics import (
 from .split import group_split
 
 BLUE, AQUA, YELLOW, VIOLET, GRAY = "#2a78d6", "#1baf7a", "#eda100", "#4a3aa7", "#8B93A1"
-GREEN, RED = "#008300", "#e34948"
+GREEN, RED, MAGENTA, ORANGE = "#008300", "#e34948", "#e87ba4", "#eb6834"
 METHOD_COLORS = {
     "agent self-report": GRAY,
     "constant-quantile": RED,
+    "conformalized-agent": MAGENTA,
     "split-absres": BLUE,
     "split-CQR": AQUA,
+    "guard+self-est": ORANGE,
     "ACI-CQR": YELLOW,
     "SPCI": VIOLET,
     "DtACI": GREEN,
@@ -51,6 +54,7 @@ METHOD_COLORS = {
 
 def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]:
     df, baseline = load_env(env)
+    est = load_agent_estimates(env)
     X, y, groups = build_xy(df)
     masks = group_split(df, seed=seed)
     tr, ca, te = masks["train"], masks["cal"], masks["test"]
@@ -67,6 +71,16 @@ def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]
     intervals["ACI-CQR"] = aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma)[:2]
     intervals["SPCI"] = spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha)[:2]
     intervals["DtACI"] = dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha)[:2]
+
+    if est is not None:
+        # (a) agent's own midpoint as the point predictor — zero training at all
+        Xa, _, _ = build_xy(df, agent_est=est)
+        mid = Xa["agent_mid"].to_numpy(dtype=float)
+        mid = np.where(np.isfinite(mid), mid, np.nanmedian(mid[ca]))
+        qhat = _finite_sample_quantile(np.abs(y[ca] - mid[ca]), alpha)
+        intervals["conformalized-agent"] = (np.maximum(mid[te] - qhat, 0.0), mid[te] + qhat)
+        # (b) guard features augmented with the agent's self-estimate
+        intervals["guard+self-est"] = cqr_split(Xa[tr], ytr, Xa[ca], yca, Xa[te], alpha=alpha)[:2]
 
     rows = []
     if baseline is not None:

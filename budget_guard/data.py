@@ -33,6 +33,28 @@ ENVS = {
 }
 
 
+def load_agent_estimates(name: str):
+    """Per-sample agent self-estimates from the official estimation record:
+    sample_id -> (agent_lo, agent_hi). Produced at turn k from prefix-only context,
+    so they are legal features. Returns None if the record is missing."""
+    import pandas as pd
+
+    spec = ENVS[name]
+    if not os.path.exists(spec["official"]):
+        return None
+    with open(spec["official"], "r", encoding="utf-8") as handle:
+        results = json.load(handle)["results"]
+    rows = []
+    for r in results:
+        interval = (r.get("prediction") or {}).get("remaining_token_interval")
+        if isinstance(interval, (list, tuple)) and len(interval) == 2 and all(
+            v is not None for v in interval
+        ):
+            rows.append({"sample_id": r["sample_id"],
+                         "agent_lo": float(interval[0]), "agent_hi": float(interval[1])})
+    return pd.DataFrame(rows) if rows else None
+
+
 def load_env(name: str):
     """(df, agent_baseline_coverage) for one env run."""
     spec = ENVS[name]

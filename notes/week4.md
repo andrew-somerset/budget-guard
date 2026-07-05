@@ -27,3 +27,18 @@ budget` with a one-sided conformal bound at level delta (rollout-level calibrate
 above). Fires *before* the cap is hit (the cap only triggers at the boundary), uses
 C1's intervals, and should dominate on both doom types. Then convert to dollars and
 to cost-of-pass (C4).
+
+## Addendum (same day): breadth, DtACI, baselines, interval-rule finding
+- **All-19-runs table** (`run_allruns.py`): SPCI >= 0.85 coverage on **19/19** runs
+  (agent: 0.02–0.52); DtACI 18/19; split-CQR only 14/19. Online adaptation is what
+  makes the guard reliable across models.
+- **DtACI added** (no gamma tuning): best headline method — 0.936±0.011 (sokoban),
+  0.950±0.015 (swebench), narrowest widths (13.3k vs SPCI's 16.4k) — kills the
+  hyperparameter objection.
+- **Constant-quantile baseline added**: covers (0.88/0.92) but 30–130% wider than the
+  guard and under-covers searchr1 (0.77) — the features/model earn their keep.
+- **Interval-driven stopping tried honestly**: rollout-level conformal calibration of
+  the lower bound is data-starved at 64–123 rollouts/run (qhat=inf below δ≈0.3), and
+  the trigger only addresses cap-exceedance doom. Feasibility rule stays C3's
+  workhorse; refinement path = pooled rollouts, per-prefix calibration w/ sequential
+  correction, or e-value tests. Code kept in economic.py (evaluate_interval_stopping).

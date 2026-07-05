@@ -15,46 +15,69 @@ import sys
 import numpy as np
 import pandas as pd
 
-from .data import load_env
-from .economic import calibrate_threshold, evaluate_stopping, fit_feasibility, hard_cap_baseline
+from .data import ENVS, load_env
+from .economic import (
+    calibrate_lower_bound,
+    calibrate_threshold,
+    evaluate_interval_stopping,
+    evaluate_stopping,
+    fit_feasibility,
+    fit_remaining_regressor,
+    hard_cap_baseline,
+)
 from .features import build_xy
 from .split import group_split
 
-BLUE, YELLOW, GRAY = "#2a78d6", "#eda100", "#8B93A1"
+BLUE, YELLOW, GRAY, GREEN = "#2a78d6", "#eda100", "#8B93A1", "#008300"
 DELTAS = (0.02, 0.05, 0.10, 0.15, 0.20, 0.30, 0.40)
 
 
 def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
     df, _ = load_env(env)
     X, y, groups = build_xy(df)
+    budget = float(ENVS[env]["max_ctx"])
     cap_grid = np.quantile(df["total_rollout_tokens"].unique(), [0.2, 0.35, 0.5, 0.65, 0.8])
 
-    guard_rows, cap_rows = [], []
+    guard_rows, combined_rows, cap_rows = [], [], []
     for seed in seeds:
         masks = group_split(df, seed=seed)
         tr, ca, te = masks["train"], masks["cal"], masks["test"]
         model = fit_feasibility(X[tr], df.loc[tr, "can_finish"])
         s_cal = model.predict_proba(X[ca])[:, 1]
         s_te = model.predict_proba(X[te])[:, 1]
+        reg = fit_remaining_regressor(X[tr], y[tr])
+        pred_cal, pred_te = reg.predict(X[ca]), reg.predict(X[te])
         for delta in DELTAS:
             tau = calibrate_threshold(df[ca], s_cal, delta)
             guard_rows.append({"seed": seed, "delta": delta,
                                **evaluate_stopping(df[te], s_te, tau)})
+            # combined rule: split the false-abort budget across the two triggers
+            tau2 = calibrate_threshold(df[ca], s_cal, delta / 2)
+            qhat = calibrate_lower_bound(df[ca], pred_cal, delta / 2)
+            combined_rows.append({"seed": seed, "delta": delta,
+                                  **evaluate_interval_stopping(
+                                      df[te], pred_te, qhat, budget,
+                                      scores_test=s_te, tau=tau2)})
         for cap in cap_grid:
             cap_rows.append({"seed": seed, **hard_cap_baseline(df[te], cap)})
 
-    guard = (pd.DataFrame(guard_rows).groupby("delta", sort=True)
-             .agg(false_abort_rate=("false_abort_rate", "mean"),
-                  doomed_savings_frac=("doomed_savings_frac", "mean")).reset_index())
+    def _agg(rows):
+        return (pd.DataFrame(rows).groupby("delta", sort=True)
+                .agg(false_abort_rate=("false_abort_rate", "mean"),
+                     doomed_savings_frac=("doomed_savings_frac", "mean")).reset_index())
+
+    guard = _agg(guard_rows)
+    combined = _agg(combined_rows)
     caps = (pd.DataFrame(cap_rows).groupby("cap_tokens", sort=True)
             .agg(false_abort_rate=("false_abort_rate", "mean"),
                  doomed_savings_frac=("doomed_savings_frac", "mean")).reset_index())
 
     os.makedirs("tables", exist_ok=True)
     os.makedirs("figures", exist_ok=True)
-    guard["rule"] = "guard"
+    guard["rule"] = "guard (feasibility)"
+    combined["rule"] = "guard (feasibility+interval)"
     caps["rule"] = "hard cap"
-    pd.concat([guard, caps], ignore_index=True).to_csv(
+    pd.concat([guard, combined, caps], ignore_index=True).to_csv(
         f"tables/abort_frontier_{env}.csv", index=False)
 
     import matplotlib
@@ -64,10 +87,12 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
 
     fig, ax = plt.subplots(figsize=(7.5, 4.6), constrained_layout=True)
     ax.plot(guard["false_abort_rate"], guard["doomed_savings_frac"], marker="o", ms=5,
-            lw=2, color=BLUE, label="guard (calibrated feasibility, sweep delta)")
-    for _, r in guard.iterrows():
+            lw=2, color=BLUE, label="guard: feasibility only")
+    ax.plot(combined["false_abort_rate"], combined["doomed_savings_frac"], marker="D",
+            ms=5, lw=2, color=GREEN, label="guard: feasibility + interval (C1→C3)")
+    for _, r in combined.iterrows():
         ax.annotate(f"δ={r['delta']:.2f}", (r["false_abort_rate"], r["doomed_savings_frac"]),
-                    textcoords="offset points", xytext=(6, -4), fontsize=7.5, color=BLUE)
+                    textcoords="offset points", xytext=(6, -4), fontsize=7.5, color=GREEN)
     ax.plot(caps["false_abort_rate"], caps["doomed_savings_frac"], marker="s", ms=5,
             lw=1.6, ls=":", color=YELLOW, label="hard token cap (sweep cap)")
     ax.set_xlabel("false-abort rate on feasible runs (test)")
@@ -80,10 +105,11 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
     ax.legend(frameon=False, fontsize=9, loc="lower right")
     fig.savefig(f"figures/abort_frontier_{env}.png", dpi=200)
 
-    print("guard:\n" + guard.to_string(index=False))
+    print("guard (feasibility):\n" + guard.to_string(index=False))
+    print("\nguard (feasibility+interval):\n" + combined.to_string(index=False))
     print("\nhard caps:\n" + caps.to_string(index=False))
     print(f"\nwrote figures/abort_frontier_{env}.png, tables/abort_frontier_{env}.csv")
-    return guard, caps
+    return guard, combined, caps
 
 
 if __name__ == "__main__":

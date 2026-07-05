@@ -86,6 +86,75 @@ def evaluate_stopping(df_test: pd.DataFrame, scores_test: np.ndarray, tau: float
     }
 
 
+def fit_remaining_regressor(X_train, y_train):
+    from lightgbm import LGBMRegressor
+
+    model = LGBMRegressor(objective="regression", **_LGBM_PARAMS)
+    model.fit(X_train, y_train)
+    return model
+
+
+def calibrate_lower_bound(df_cal: pd.DataFrame, pred_cal: np.ndarray, delta: float) -> float:
+    """qhat s.t. lo_t = pred_t - qhat under-shoots y_t at EVERY prefix of a feasible
+    run, except with prob <= delta. Score = pred - y; rollout-level max over feasible
+    CAL rollouts; qhat = (1-delta)-quantile with the (n+1) correction.
+
+    For a feasible run total <= budget, so tokens_so_far + lo_t > budget implies
+    lo_t > y_t — controlling the invalid-lower-bound event controls false aborts.
+    """
+    tmp = df_cal[["rollout_index", "can_finish"]].copy()
+    tmp["score"] = pred_cal - df_cal["y"].to_numpy(dtype=float)
+    per = tmp.groupby("rollout_index").agg(
+        max_score=("score", "max"), feasible=("can_finish", "first")
+    )
+    scores = np.sort(per.loc[per["feasible"], "max_score"].to_numpy())
+    n = len(scores)
+    if n == 0:
+        return float("inf")
+    rank = int(np.ceil((n + 1) * (1 - delta)))
+    if rank > n:
+        return float("inf")
+    return float(scores[rank - 1])
+
+
+def evaluate_interval_stopping(
+    df_test: pd.DataFrame,
+    pred_test: np.ndarray,
+    qhat: float,
+    budget: float,
+    scores_test: Optional[np.ndarray] = None,
+    tau: float = -np.inf,
+) -> dict:
+    """Abort at the first prefix where tokens_so_far + (pred - qhat) > budget,
+    OR (if a feasibility score is supplied) where score < tau — the combined rule.
+    """
+    tmp = df_test[["rollout_index", "k", "can_finish", "tokens_so_far", "total_rollout_tokens"]].copy()
+    tmp["lo_total"] = df_test["tokens_so_far"].to_numpy(dtype=float) + (pred_test - qhat)
+    tmp["feas_score"] = scores_test if scores_test is not None else np.inf
+
+    n_feasible = n_doomed = false_aborts = 0
+    doomed_total = doomed_saved = 0.0
+    for _, g in tmp.sort_values("k").groupby("rollout_index"):
+        feasible = bool(g["can_finish"].iloc[0])
+        total = float(g["total_rollout_tokens"].iloc[0])
+        trigger = g[(g["lo_total"] > budget) | (g["feas_score"] < tau)]
+        aborted = len(trigger) > 0
+        if feasible:
+            n_feasible += 1
+            false_aborts += int(aborted)
+        else:
+            n_doomed += 1
+            doomed_total += total
+            if aborted:
+                doomed_saved += total - float(trigger["tokens_so_far"].iloc[0])
+    return {
+        "false_abort_rate": false_aborts / n_feasible if n_feasible else np.nan,
+        "doomed_savings_frac": doomed_saved / doomed_total if doomed_total else np.nan,
+        "n_feasible": n_feasible,
+        "n_doomed": n_doomed,
+    }
+
+
 def hard_cap_baseline(df_test: pd.DataFrame, cap_tokens: float) -> dict:
     """Heuristic: abort when tokens_so_far exceeds a fixed cap."""
     tmp = df_test[["rollout_index", "k", "can_finish", "tokens_so_far", "total_rollout_tokens"]]

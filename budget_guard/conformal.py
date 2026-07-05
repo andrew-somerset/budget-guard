@@ -155,6 +155,64 @@ def spci(
     return _clip_nonneg(lo), hi, {"window": window}
 
 
+def constant_quantile(y_cal, n_test: int, alpha=DEFAULT_ALPHA):
+    """No-model baseline: the same empirical [alpha/2, 1-alpha/2] interval of the
+    calibration y's for every test point. If the guard barely beats this, the
+    features/model add nothing — reviewers will ask."""
+    y_cal = np.asarray(y_cal, dtype=float)
+    lo = float(np.quantile(y_cal, alpha / 2))
+    hi = float(np.quantile(y_cal, 1 - alpha / 2))
+    return np.full(n_test, max(lo, 0.0)), np.full(n_test, hi), {}
+
+
+def dtaci(
+    X_train, y_train, X_cal, y_cal, X_test, y_test,
+    alpha=DEFAULT_ALPHA,
+    gammas: tuple[float, ...] = (0.005, 0.01, 0.02, 0.05, 0.1, 0.2),
+    eta: float = 2.0,
+    sigma: float = 0.01,
+):
+    """DtACI (Gibbs & Candès 2022, simplified constants): expert aggregation over
+    ACI copies with different gammas — no gamma tuning step at all.
+
+    Each expert k tracks its own alpha_t^k; the working level is the weight-averaged
+    alpha_t. After each label, beta_t (the largest level that would still have
+    covered) scores every expert via pinball loss; weights update exponentially with
+    a small uniform mixing sigma to keep experts alive.
+    """
+    mlo, mhi = _fit_cqr(X_train, y_train, alpha)
+    cal_scores = np.sort(_cqr_scores(mlo.predict(X_cal), mhi.predict(X_cal), y_cal))
+    qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
+    n_cal = len(cal_scores)
+
+    K = len(gammas)
+    expert_alpha = np.full(K, alpha)
+    weights = np.full(K, 1.0 / K)
+
+    lo = np.empty(len(y_test))
+    hi = np.empty(len(y_test))
+    for t in range(len(y_test)):
+        alpha_t = float(np.clip(np.dot(weights, expert_alpha), 0.0, 0.999))
+        qhat = float("inf") if alpha_t <= 0 else _finite_sample_quantile(cal_scores, alpha_t)
+        lo[t] = qlo_test[t] - qhat if np.isfinite(qhat) else 0.0
+        hi[t] = qhi_test[t] + qhat
+
+        score_t = float(_cqr_scores(qlo_test[t : t + 1], qhi_test[t : t + 1], y_test[t : t + 1])[0])
+        # beta_t: largest alpha whose (finite-sample) quantile still covers score_t
+        beta_t = float(np.sum(cal_scores >= score_t) + 1) / (n_cal + 1)
+        # pinball loss of each expert's level against beta_t
+        u = beta_t - expert_alpha
+        losses = u * (alpha - (u < 0).astype(float))
+        weights = weights * np.exp(-eta * losses)
+        weights = (1 - sigma) * weights / weights.sum() + sigma / K
+        # each expert runs its own ACI update
+        expert_err = (expert_alpha > beta_t).astype(float)
+        expert_alpha = expert_alpha + np.asarray(gammas) * (alpha - expert_err)
+
+    frac_inf = float(np.mean(~np.isfinite(hi)))
+    return _clip_nonneg(lo), hi, {"frac_inf": frac_inf, "final_weights": weights}
+
+
 def tune_gamma(
     X_train, y_train, X_cal, y_cal, cal_groups,
     alpha=DEFAULT_ALPHA,

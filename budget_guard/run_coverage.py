@@ -18,7 +18,9 @@ import pandas as pd
 from .conformal import (
     DEFAULT_ALPHA,
     aci_cqr,
+    constant_quantile,
     cqr_split,
+    dtaci,
     spci,
     split_conformal_absres,
     tune_gamma,
@@ -29,12 +31,15 @@ from .metrics import frac_unbounded, marginal_coverage, median_width, normalized
 from .split import group_split
 
 BLUE, AQUA, YELLOW, VIOLET, GRAY = "#2a78d6", "#1baf7a", "#eda100", "#4a3aa7", "#8B93A1"
+GREEN, RED = "#008300", "#e34948"
 METHOD_COLORS = {
     "agent self-report": GRAY,
+    "constant-quantile": RED,
     "split-absres": BLUE,
     "split-CQR": AQUA,
     "ACI-CQR": YELLOW,
     "SPCI": VIOLET,
+    "DtACI": GREEN,
 }
 
 
@@ -50,10 +55,12 @@ def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]
     gamma = tune_gamma(Xtr, ytr, Xca, yca, groups[ca], alpha=alpha, seed=seed)
 
     intervals = {}
+    intervals["constant-quantile"] = constant_quantile(yca, len(yte), alpha=alpha)[:2]
     intervals["split-absres"] = split_conformal_absres(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2]
     intervals["split-CQR"] = cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2]
     intervals["ACI-CQR"] = aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma)[:2]
     intervals["SPCI"] = spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha)[:2]
+    intervals["DtACI"] = dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha)[:2]
 
     rows = []
     if baseline is not None:

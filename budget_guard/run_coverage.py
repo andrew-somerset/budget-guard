@@ -78,14 +78,32 @@ def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]
     return rows
 
 
-def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
+def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA):
     rows = []
-    for env in ENVS:
-        rows.extend(run_env(env, seed=seed, alpha=alpha))
-    table = pd.DataFrame(rows)
+    for seed in seeds:
+        for env in ENVS:
+            for row in run_env(env, seed=seed, alpha=alpha):
+                rows.append({**row, "seed": seed})
+    per_seed = pd.DataFrame(rows).drop_duplicates(
+        subset=["env", "method", "seed"]  # baseline row repeats identically per seed
+    )
+    agg = (
+        per_seed.groupby(["env", "method"], sort=False)
+        .agg(
+            coverage=("coverage", "mean"),
+            coverage_std=("coverage", "std"),
+            median_width=("median_width", "mean"),
+            normalized_width=("normalized_width", "mean"),
+            frac_unbounded=("frac_unbounded", "mean"),
+            n_test=("n_test", "mean"),
+        )
+        .reset_index()
+    )
+    table = agg
 
     os.makedirs("tables", exist_ok=True)
     os.makedirs("figures", exist_ok=True)
+    per_seed.to_csv("tables/coverage_per_seed.csv", index=False)
     table.to_csv("tables/coverage.csv", index=False)
 
     import matplotlib
@@ -99,16 +117,19 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     width = 0.16
     xs = np.arange(len(envs))
     for i, method in enumerate(methods):
-        vals = []
+        vals, errs = [], []
         for env in envs:
             sel = table[(table["env"] == env) & (table["method"] == method)]
             vals.append(sel["coverage"].item() if len(sel) else np.nan)
+            err = sel["coverage_std"].item() if len(sel) else np.nan
+            errs.append(err if np.isfinite(err) else 0.0)
         offset = (i - (len(methods) - 1) / 2) * width
         bars = ax.bar(xs + offset, vals, width=width - 0.02,
-                      color=METHOD_COLORS[method], label=method)
-        for bar, v in zip(bars, vals):
+                      color=METHOD_COLORS[method], label=method,
+                      yerr=errs, error_kw={"ecolor": "#4A5361", "lw": 1, "capsize": 2})
+        for bar, v, e in zip(bars, vals, errs):
             if np.isfinite(v):
-                ax.text(bar.get_x() + bar.get_width() / 2, v + 0.012, f"{v:.2f}",
+                ax.text(bar.get_x() + bar.get_width() / 2, v + e + 0.014, f"{v:.2f}",
                         ha="center", fontsize=8)
     ax.axhline(1 - alpha, color="#4A5361", lw=1.2, ls="--")
     ax.text(0.995, 1 - alpha + 0.015, f"nominal {1 - alpha:.2f}", ha="right",
@@ -117,7 +138,7 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     ax.set_ylim(0, 1.12)
     ax.set_ylabel("marginal coverage")
     ax.set_title("Remaining-budget interval coverage: BAGEN agent vs conformal guard "
-                 f"(alpha={alpha}, claude-opus-4.7 rollouts)")
+                 f"(alpha={alpha}, claude-opus-4.7, mean±std over {len(seeds)} split seeds)")
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=9, ncol=len(methods), loc="lower center",

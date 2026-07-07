@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "budget-guard"
+version = "0.1.0"
+description = "Training-free, distribution-free budget guards for long-horizon LLM agents via online conformal prediction."
+readme = "README.md"
+requires-python = ">=3.10"
+# Lean runtime for the drop-in BudgetGuard wrapper (no GPU, no API). The full
+# experiment suite needs the [experiments] extra.
+dependencies = [
+    "numpy",
+    "pandas",
+    "lightgbm",
+    "scikit-learn",  # required by lightgbm's sklearn API (LGBMRegressor/Classifier)
+]
+
+[project.optional-dependencies]
+experiments = [
+    "scipy",
+    "matplotlib",
+    "huggingface_hub",
+    "pytest",
+]
+
+[tool.setuptools]
+packages = ["budget_guard"]

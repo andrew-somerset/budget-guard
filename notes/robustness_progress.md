@@ -38,11 +38,10 @@ must confirm them before anything relies on them.
    - `run_transfer.py` and `run_transfer_env.py` exist on disk already. run_transfer_env
      VERIFIED reproducing week3/4; run_transfer verified to import but target_runs()
      returns empty here (data-blocked).
-7. Ship the wrapper as generality proof — **Not started**
-   - `budget_guard/guard.py` (`BudgetGuard` class), a README wrapper-API section,
-     and `tests/test_guard.py` already exist on disk (new/untracked as of 2026-07-07).
-     Unverified — this is new, unaudited code; run the tests and the README demo
-     before treating any of it as working.
+7. Ship the wrapper as generality proof — **Done** (2026-07-07: added pyproject.toml
+   (pip-installable) + runnable no-data `examples/quickstart.py`; clean `pip install -e .`
+   + demo verified in a FRESH isolated venv. The clean install CAUGHT + FIXED a real bug:
+   scikit-learn was under-declared (required by lightgbm's sklearn API). test_guard passes.)
 8. Censored conformal resource-bound refinement — **Not started**
    - `budget_guard/censored.py`, `run_censored.py`, `run_gated.py` already implement
      rungs 1-3 per notes/week6.md (drop / bound / resource_bound / gated methods).
@@ -225,3 +224,35 @@ Remains: model-swap bars (sonnet/gemini/gpt/qwen) via run_transfer once the full
 is downloaded. Suite: **23 passed, 2 skipped**.
 
 Reproduce: `.venv\Scripts\python -m budget_guard.run_transfer_env`.
+
+### 2026-07-07 — Item 7 (ship the wrapper), loop iteration 5
+
+Status: **Done.** The wrapper is pip-installable and a clean install + demo runs
+end-to-end from a fresh isolated environment — and that clean install CAUGHT A REAL BUG.
+
+What I did:
+- Added `pyproject.toml` (setuptools; name budget-guard, packages=[budget_guard]). Lean
+  wrapper runtime deps; the full experiment suite is behind an [experiments] extra.
+- Added `examples/quickstart.py` — a runnable NO-DATA demo (synthetic runs -> calibrate
+  -> stream a live run -> abort). Wired install + demo into the README.
+- Verified in a FRESH isolated venv (uv, in TEMP): `pip install -e .` then
+  `python examples/quickstart.py`.
+
+**BUG FOUND + FIXED** (evidence the wrapper was new/unaudited code): the first clean
+install declared deps numpy/pandas/lightgbm and the demo CRASHED with
+`LightGBMError: scikit-learn is required for lightgbm.sklearn`. The guard uses LGBM's
+sklearn API (LGBMRegressor/Classifier), so scikit-learn is a REQUIRED runtime dep, not
+optional. The main .venv had it (masking the gap); the minimal fresh env exposed it.
+Fix: moved scikit-learn into core `dependencies`; reinstall -> demo runs clean.
+
+Demo transcript (fresh env, after fix):
+    Calibrated a training-free BudgetGuard on 120 synthetic runs (budget=900).
+    turn 1: spent    252 | remaining in [   368,    900]
+    turn 2: spent    459 | remaining in [   288,    922]
+    turn 3: spent    674 | remaining in [   167,    805]
+    turn 4: spent    919 | remaining in [    87,    612]   <-- ABORT: projected spend exceeds budget
+
+test_guard.py passes inside the suite (**23 passed, 2 skipped**).
+
+Reproduce: `uv venv $env:TEMP\bg; uv pip install --python $env:TEMP\bg -e .;
+$env:TEMP\bg\Scripts\python examples\quickstart.py`  (or plain `pip install -e .`).

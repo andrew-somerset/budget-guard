@@ -62,8 +62,18 @@ else:
 ```
 
 `step()` takes the turn's **history-excluded** total tokens (the `turn_excluding_history`
-accounting the guard was calibrated on). No BAGEN data needed to try the API — see the
-synthetic examples in [`tests/test_guard.py`](tests/test_guard.py).
+accounting the guard was calibrated on).
+
+**Install** the wrapper — numpy/pandas/lightgbm only, no GPU, no API — and run the
+no-data demo (calibrates on synthetic runs, streams a live one):
+
+```bash
+pip install -e .
+python examples/quickstart.py
+```
+
+See [`examples/quickstart.py`](examples/quickstart.py) and the tests in
+[`tests/test_guard.py`](tests/test_guard.py); no BAGEN data is needed to try the API.
 
 ## Layout
 

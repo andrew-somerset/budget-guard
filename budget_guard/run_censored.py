@@ -1,8 +1,13 @@
 """budget_guard/run_censored.py — mask-and-measure validation of censored conformal.
 
-Warehouse remaining-cost. Rows with can_finish=False are treated exactly as a
-deployment would see them (label masked, only the bound b = budget − spent known);
-their recoverable totals are used ONLY to measure true coverage afterwards.
+Warehouse, all three resources. Rows with can_finish=False are treated as a
+deployment would see them (label masked; only the bound b = budget − spent and the
+observed *which-budget-was-hit* signal are known); recoverable totals are used ONLY
+to measure true coverage afterwards.
+
+Compares five calibrations of the one-sided upper bound (see ``censored.upper_qhat``),
+including ``resource_bound`` — the multi-resource fix that bounds resource r only on
+the runs where r is the operative (binding) constraint.
 
 Usage: python -m budget_guard.run_censored
 Writes tables/censored_upper.csv.
@@ -16,55 +21,78 @@ import pandas as pd
 
 from .censored import upper_qhat
 from .economic import fit_feasibility, fit_remaining_regressor
-from .multiresource import build_features, load_warehouse
+from .multiresource import RESOURCES, build_features, load_warehouse
 from .run_multiresource import PATH
 from .split import group_split
 
 ALPHA = 0.1
-METHODS = ("drop", "infinity", "bound", "ipcw")
+METHODS = ("drop", "infinity", "bound", "ipcw", "resource_bound", "km")
+
+
+def _stratified_cov(y: np.ndarray, hi: np.ndarray, te: np.ndarray, mask: np.ndarray) -> float:
+    """Mean coverage y <= hi over the test rows in ``mask`` (hi is indexed over test)."""
+    m = mask & te
+    if not m.any():
+        return float("nan")
+    return float(np.mean(y[m] <= hi[m[te]]))
 
 
 def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
     df = load_warehouse(PATH, keep_censored=True)
     X = build_features(df)
-    y = df["y_cost_usd"].to_numpy(dtype=float)  # recovered truth (masked below)
     cens = df["censored"].to_numpy(dtype=bool)
-    bound = (df["budget_cost_usd"] - df["spent_cost_usd"]).to_numpy(dtype=float)
-
-    # how tight is the censoring bound, really? (uses recovered truth; report only)
-    bound_valid = float(np.mean(y[cens] > bound[cens]))
-    print(f"censored rows: {cens.mean():.0%}; bound y > budget−spent holds on "
-          f"{bound_valid:.1%} of them (recovered truth)")
+    print(f"{len(df)} prefix samples, {df['rollout_index'].nunique()} rollouts; "
+          f"censored = {cens.mean():.0%}")
 
     rows = []
-    for seed in seeds:
-        masks = group_split(df, seed=seed)
-        tr, ca, te = masks["train"], masks["cal"], masks["test"]
-        tr_unc = tr & ~cens  # deployment could not train on censored labels
-        reg = fit_remaining_regressor(X[tr_unc], y[tr_unc])
-        clf = fit_feasibility(X[tr], ~cens[tr])  # P(uncensored | x)
+    for res in RESOURCES:
+        y = df[f"y_{res}"].to_numpy(dtype=float)
+        budget = df[f"budget_{res}"].to_numpy(dtype=float)
+        spent = df[f"spent_{res}"].to_numpy(dtype=float)
+        total = df[f"total_{res}"].to_numpy(dtype=float)
+        bound = budget - spent
+        obs = np.isfinite(y)  # unrecoverable censored totals -> exclude from scoring
+        # r is the OPERATIVE (binding) constraint for a censored run when its full
+        # requirement for r exceeds r's budget. In deployment this is the observed
+        # "which budget was hit" event; here it is derived from the recovered total.
+        binding = cens & np.isfinite(total) & (total > budget)
+        frac_bind = float(binding[cens].mean()) if cens.any() else float("nan")
 
-        pred_ca, pred_te = reg.predict(X[ca]), reg.predict(X[te])
-        ca_unc, ca_cen = ca & ~cens, ca & cens
-        s_unc = y[ca_unc] - reg.predict(X[ca_unc])
-        s_cens_lb = bound[ca_cen] - reg.predict(X[ca_cen])
-        p_unc = clf.predict_proba(X[ca_unc])[:, 1]
+        for seed in seeds:
+            masks = group_split(df, seed=seed)
+            tr, ca, te = masks["train"], masks["cal"], masks["test"]
+            reg = fit_remaining_regressor(X[tr & ~cens], y[tr & ~cens])
+            clf = fit_feasibility(X[tr], ~cens[tr])  # P(uncensored | x)
 
-        for method in METHODS:
-            qhat = upper_qhat(s_unc, s_cens_lb, ALPHA, method,
-                              p_uncensored=p_unc if method == "ipcw" else None)
-            hi = pred_te + qhat
-            cov_all = float(np.mean(y[te] <= hi))
-            cov_cens = float(np.mean(y[te & cens] <= hi[cens[te]]))
-            cov_unc = float(np.mean(y[te & ~cens] <= hi[~cens[te]]))
-            rows.append({"seed": seed, "method": method, "qhat": qhat,
-                         "cov_all": cov_all, "cov_censored": cov_cens,
-                         "cov_uncensored": cov_unc})
+            ca_unc = ca & ~cens
+            ca_cen = ca & cens & np.isfinite(bound)
+            s_unc = y[ca_unc] - reg.predict(X[ca_unc])
+            s_cens_lb = bound[ca_cen] - reg.predict(X[ca_cen])
+            binding_cen = binding[ca_cen]
+            p_unc = clf.predict_proba(X[ca_unc])[:, 1]
+            pred_te = reg.predict(X[te])
 
-    table = (pd.DataFrame(rows).groupby("method", sort=False)
-             .agg(cov_all=("cov_all", "mean"), cov_censored=("cov_censored", "mean"),
-                  cov_uncensored=("cov_uncensored", "mean"),
-                  qhat_median=("qhat", "median")).reset_index())
+            for method in METHODS:
+                qhat = upper_qhat(
+                    s_unc, s_cens_lb, ALPHA, method,
+                    p_uncensored=p_unc if method == "ipcw" else None,
+                    censored_binding=binding_cen if method in ("resource_bound", "km") else None,
+                )
+                hi = pred_te + qhat
+                rows.append({
+                    "resource": res, "seed": seed, "method": method, "qhat": qhat,
+                    "cov_feasible": _stratified_cov(y, hi, te, obs & ~cens),
+                    "cov_cens_binding": _stratified_cov(y, hi, te, obs & binding),
+                    "cov_cens_nonbinding": _stratified_cov(y, hi, te, obs & cens & ~binding),
+                    "frac_binding_of_censored": frac_bind,
+                })
+
+    table = (pd.DataFrame(rows).groupby(["resource", "method"], sort=False)
+             .agg(cov_feasible=("cov_feasible", "mean"),
+                  cov_cens_binding=("cov_cens_binding", "mean"),
+                  cov_cens_nonbinding=("cov_cens_nonbinding", "mean"),
+                  qhat_median=("qhat", "median"),
+                  frac_binding=("frac_binding_of_censored", "first")).reset_index())
     os.makedirs("tables", exist_ok=True)
     table.to_csv("tables/censored_upper.csv", index=False)
     print(table.to_string(index=False))

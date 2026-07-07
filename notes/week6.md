@@ -48,6 +48,94 @@ Findings that could carry a methods section:
    observed *which-budget-was-hit* indicator for resource-specific bounds.
    ← this is the concrete next idea to pitch to the PIs for the methods contribution.
 
+## P2 rung 2 — resource-specific ("which-budget-was-hit") calibration ✅ (2026-07-07)
+Developed the refinement flagged above. A censored run bounds resource r ONLY when r
+is the operative (binding) constraint (total_r > budget_r); runs censored by a
+*different* resource are uninformative for r and dropped. New method
+`censored.upper_qhat(..., method="resource_bound", censored_binding=…)`; `run_censored`
+now sweeps all three resources with stratified coverage (5 seeds, +3 unit tests).
+
+Operative-constraint fractions of censored rows: time 30% / warehouse 34% / cost 42%
+(sum > 1 — a doomed run can bind several).
+
+| resource | method | cov feasible | cov cens-binding | qhat |
+|---|---|---|---|---|
+| time (exact spend)    | drop           | 1.00 | 1.00 | 3e-4 |
+| time                  | bound          | 1.00 | 1.00 | 16 |
+| time                  | **resource_bound** | **0.90** | **0.90** | **2e-4** |
+| cost (interp. spend)  | drop           | 0.88 | 0.50 | 66k |
+| cost                  | bound          | 1.00 | 0.99 | 385k |
+| cost                  | **resource_bound** | 0.86 | 0.46 | 64k |
+
+The finding (honest — sharper than a clean win):
+1. **`bound`'s coverage was an artifact.** It over-covers only by borrowing large
+   *false* bounds from non-operative resources — for the cost target, the 58% of
+   censored runs that failed on time/warehouse spent little cost, so their
+   budget−spent headroom is large and inflates qhat to 385k. Resource-attribution
+   removes that false inflation.
+2. **On time (exact spend), resource_bound is the clean winner**: nominal 0.90 in
+   every stratum where drop and bound both over-cover (1.00) with qhat up to ~50,000×
+   larger.
+3. **On cost/warehouse (interpolated spend), it exposes the real limit**: the
+   operative resource's own lower bound budget−spent is too loose — doomed runs
+   overshoot budget by far more than the headroom — so no finite tight bound is valid
+   there. That is *why* operative-resource doom must be caught by the feasibility gate
+   (C3); the calibrated interval governs the feasible / non-operative regime.
+
+Net methods story: censoring in multi-resource budgets is resource-specific; correct
+attribution fixes naive under-coverage where spend is exact and diagnoses where
+interval prediction must defer to classification.
+
+## P2 rung 3 — feasibility-gated intervals (predict-feasible-then-bound) ✅ (2026-07-07)
+The positive counterpart to rung 2. Since the operative resource can't be tightly
+bounded from censored data, don't bound it — gate on the feasibility classifier and
+emit an interval ONLY for runs predicted feasible-on-r (abort the rest). Unifies C1
+(interval) + C3 (gate). New `censored.gated_upper_qhat`; `run_gated.py` (5 seeds, gate
+false-abort budget δ=0.1). Guarantee: coverage of y_r CONDITIONAL on passing the gate
+(selective coverage), where censoring is filtered out so exchangeability ~holds.
+
+| resource | kept | gate catches doomed | false-abort | cov (kept, feasible) | qhat |
+|---|---|---|---|---|---|
+| time      | 88% | 93% | 0.0%  | 1.00 | 3e-4 |
+| warehouse | 70% | 74% | 7.4%  | 0.95 | 10k |
+| cost      | 80% | 72% | 10.5% | **0.92** | **70k** |
+
+The win: on **cost**, un-gated resource_bound covered the doomed at only 0.46 with a
+385k bound; **gating restores 0.92 coverage on the kept population with a tight 70k
+bound**, catching 72% of doomed-on-cost at ~δ false-abort. Same shape for warehouse.
+False-abort tracks δ (0.0 / 0.07 / 0.10), so the gate's error is controlled by design.
+
+**Completed methods narrative (P2 rungs 1–3):** censoring in multi-resource budgets is
+resource-specific (rungs 1–2); the operative resource can't be *validly* covered from
+its loose lower bound (see KM below), so the guard **abstains** on predicted doom and
+gives a calibrated interval on the rest (rung 3). A selective-conformal split of labour
+between classification and interval. Tests: +2 (5 in test_censored).
+
+## Phase 1 reviewer-proofing (2026-07-07): like-for-like C2, KM survival, selective frontier
+- **Like-for-like C2 baseline fixed.** The agent joint coverage was BAGEN's rate over
+  all 1280 samples (0.422). Recomputed on the SAME feasible test rows the guard is
+  scored on (per-sample `*_interval_contains_actual` flags): **agent joint 0.36**
+  (time 0.74 / warehouse 0.57 / cost 0.61). The guard's 0.95 advantage *widens* — the
+  agent is worse-calibrated on completable tasks than its all-samples average implied.
+  `load_warehouse` now carries `agent_cov_*`; `run_multiresource` reports it per-seed.
+- **Kaplan–Meier survival estimator (`km`) added — and it corrected an over-claim.**
+  Rung 2 read as "the operative resource is unboundable." KM (right-censoring the
+  binding scores at their lower bound) actually returns a *finite* cost bound (≈91k),
+  because doomed runs already spent most of budget, so their observed lower bound
+  budget−spent is SMALL (lower tail), not large. KM gives the **best non-gated coverage
+  on the doomed (cost 0.58** vs drop 0.50 / resource_bound 0.46) — but still well under
+  0.90. Honest statement: a finite bound *exists*; you just can't get a *valid* (0.90)
+  one from the censored data — even KM, the proper method, reaches 0.58. KM correctly
+  → +inf only when the upper tail itself is censored (unit test); that regime doesn't
+  arise here. This is a cleaner, quantified motivation for the gate than "diverges."
+- **Selective frontier** (`run_gated` δ-sweep → `figures/selective_frontier.png`): all
+  three resources sit ABOVE nominal 0.90 on the kept population across kept ∈ [0.5, 0.9];
+  cost rises 0.917 → 0.931 as the gate keeps fewer. The gate buys valid coverage by
+  abstaining.
+- **Fixed-seed `figures/final/`** via new `run_final.py` (seeds 0–4): joint_vs_marginal,
+  abort_frontier_warehouse, selective_frontier. Transfer / coverage-main need the full
+  multi-model dataset (not on this box). Tests: **19 passed / 2 skipped** (+2 KM).
+
 ## Engineering
 - `economic.py` generalized to arbitrary spend/total/order columns (`_run_rule`).
 - `multiresource.load_warehouse(keep_censored=True)` recovers y for censored rows

@@ -31,29 +31,35 @@ PATH = os.path.join(
 BLUE, AQUA, YELLOW, GRAY = "#2a78d6", "#1baf7a", "#eda100", "#8B93A1"
 
 
-def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA):
+def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA,
+         outdir: str = "figures"):
     df = load_warehouse(PATH)
-    baseline = agent_joint_baseline(PATH)
-    print(f"{len(df)} prefix samples, {df['rollout_index'].nunique()} rollouts; "
-          f"agent joint baseline = {baseline['joint']:.3f}")
+    summary = agent_joint_baseline(PATH)  # BAGEN's rate over ALL 1280 samples (not like-for-like)
+    print(f"{len(df)} feasible prefix samples, {df['rollout_index'].nunique()} rollouts; "
+          f"agent joint: BAGEN summary (all samples) = {summary['joint']:.3f}; "
+          f"like-for-like (feasible test rows) below")
 
     rows = []
     for seed in seeds:
         masks = group_split(df, seed=seed)
+        te = masks["test"]
+        # like-for-like agent baseline: the SAME feasible test rows the guard is scored on,
+        # from the record's per-sample agent coverage flags (joint = all three contain).
+        acov = {res: float(df.loc[te, f"agent_cov_{res}"].mean()) for res in RESOURCES}
+        acov["joint"] = float(df.loc[te, [f"agent_cov_{r}" for r in RESOURCES]].all(axis=1).mean())
+        rows.append({"scheme": "agent self-report", "seed": seed, **acov})
         for scheme in ("independent", "bonferroni", "copula"):
             result = joint_intervals(df, masks, alpha=alpha, scheme=scheme)
             cov = joint_coverage(df, masks["test"], result["intervals"])
             rows.append({"scheme": scheme, "seed": seed, **cov})
     per_seed = pd.DataFrame(rows)
-    agg = per_seed.groupby("scheme", sort=False).agg(
+    table = per_seed.groupby("scheme", sort=False).agg(
         **{c: (c, "mean") for c in list(RESOURCES) + ["joint"]},
         joint_std=("joint", "std"),
     ).reset_index()
 
     os.makedirs("tables", exist_ok=True)
-    os.makedirs("figures", exist_ok=True)
-    baseline_row = {"scheme": "agent self-report", **baseline, "joint_std": np.nan}
-    table = pd.concat([pd.DataFrame([baseline_row]), agg], ignore_index=True)
+    os.makedirs(outdir, exist_ok=True)
     table.to_csv("tables/multiresource.csv", index=False)
 
     import matplotlib
@@ -84,14 +90,14 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     ax.set_ylim(0, 1.12)
     ax.set_ylabel("coverage")
     ax.set_title(f"C2 multi-resource (Warehouse, opus-4.7): per-resource and joint coverage, "
-                 f"mean over {len(seeds)} seeds")
+                 f"like-for-like, mean over {len(seeds)} seeds")
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=9, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 1.06))
-    fig.savefig("figures/joint_vs_marginal.png", dpi=200)
+    fig.savefig(f"{outdir}/joint_vs_marginal.png", dpi=200)
 
     print(table.to_string(index=False))
-    print("\nwrote figures/joint_vs_marginal.png, tables/multiresource.csv")
+    print(f"\nwrote {outdir}/joint_vs_marginal.png, tables/multiresource.csv")
     return table
 
 

@@ -22,6 +22,15 @@ from .conformal import DEFAULT_ALPHA, cqr_split
 
 RESOURCES = ("time_weeks", "warehouse_item_weeks", "cost_usd")
 
+# Per-sample agent interval-coverage flags in the record's ``metrics`` (BAGEN's own
+# per-resource "did the agent's interval contain the truth" indicators). Averaging
+# these over the guard's feasible test rows gives a like-for-like agent baseline.
+_AGENT_COV_KEY = {
+    "time_weeks": "time_interval_contains_actual",
+    "warehouse_item_weeks": "warehouse_interval_contains_actual",
+    "cost_usd": "cost_interval_contains_actual",
+}
+
 _FEATURES = (
     "completed_turns",
     "completed_weeks",
@@ -76,6 +85,9 @@ def load_warehouse(path: str, keep_censored: bool = False) -> pd.DataFrame:
             if remaining is None and total is not None and np.isfinite(spent):
                 remaining = max(0.0, total - spent)  # recovered truth for censored rows
             row[f"y_{res}"] = remaining
+        metrics = record.get("metrics") or {}
+        for res in RESOURCES:
+            row[f"agent_cov_{res}"] = bool(metrics.get(_AGENT_COV_KEY[res]))
         rows.append(row)
     df = pd.DataFrame(rows)
     if not keep_censored:

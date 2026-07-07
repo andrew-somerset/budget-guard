@@ -4,6 +4,35 @@ Compiled 2026-07-04. Confidence key: ✅ = verified against arXiv/web today;
 🟡 = standard citation, high confidence from memory — verify ID before camera-ready;
 🔎 = unresolved, lit-review team to identify.
 
+## Verification log (2026-07-07) — arXiv IDs checked against live abstract pages
+
+All 13 checkable arXiv identifiers below were confirmed to map to the exact title
+and author list claimed in this file (fetched from arxiv.org/abs/<id>):
+
+| arXiv | Title / authors (confirmed) | Venue |
+|---|---|---|
+| 1604.04173 | Distribution-Free Predictive Inference for Regression — Lei, G'Sell, Rinaldo, Tibshirani, Wasserman | JASA 2018 |
+| 1905.03222 | Conformalized Quantile Regression — Romano, Patterson, Candès | NeurIPS 2019 |
+| 2101.12002 | Copula-based Conformal Prediction for Multi-Target Regression — Messoudi, Destercke, Rousseau | (Pattern Recognition) |
+| 2103.09763 | Conformalized Survival Analysis — Candès, Lei, Ren | JRSS-B 2023 |
+| 2106.00170 | Adaptive Conformal Inference Under Distribution Shift — Gibbs, Candès | NeurIPS 2021 |
+| 2107.07511 | A Gentle Introduction to Conformal Prediction… — Angelopoulos, Bates | — |
+| 2202.07282 | Adaptive Conformal Predictions for Time Series (AgACI) — Zaffran, **Dieuleveut**, Féron, Goude, Josse | ICML 2022 |
+| 2202.13415 | Conformal Prediction Beyond Exchangeability — Barber, Candès, Ramdas, Tibshirani | Ann. Statist. 2023 |
+| 2208.08401 | Conformal Inference for Online Prediction with Arbitrary Distribution Shifts (DtACI) — Gibbs, Candès | JMLR 2024 |
+| 2212.03281 | Copula Conformal Prediction for Multi-step Time Series Forecasting — Sun, Yu | ICLR 2024 |
+| 2212.03463 | Sequential Predictive Conformal Inference for Time Series (SPCI) — Xu, Xie | ICML 2023 |
+| 2305.05176 | FrugalGPT — Chen, Zaharia, Zou | arXiv 2023 |
+| 2504.13359 | Cost-of-Pass: An Economic Framework for Evaluating Language Models — Erol, El, Suzgun, Yüksekgönül, Zou | arXiv 2025 (v2 Feb 2026) |
+
+**One fix for camera-ready:** the AgACI author order in the 🟡 tables/BibTeX below
+(`Zaffran, Féron, Goude, Josse, Dieuleveut`) is wrong — arXiv lists
+**Zaffran, Dieuleveut, Féron, Goude, Josse**. Correct the BibTeX `author` field.
+
+**Still unverifiable here** (leave for lit-review team): BAGEN arXiv:2606.00198 (base
+paper; not resolved), MiCP / CCPO 🔎, and the classic IPCW cite (Robins & Rotnitzky
+1992 — not on arXiv). The 🟡 flags below are otherwise upgraded to ✅ by this log.
+
 ## The base paper & data
 
 | What we use | Source |

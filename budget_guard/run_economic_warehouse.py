@@ -42,7 +42,7 @@ def _cost_of_pass(df_test: pd.DataFrame, trigger: np.ndarray) -> dict:
             "cost_of_pass_usd": spend / max(passes, 1.0)}
 
 
-def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
+def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), outdir: str = "figures"):
     df = load_warehouse(PATH, keep_censored=True)
     X = build_features(df)
     print(f"{len(df)} samples, {df['rollout_index'].nunique()} rollouts, "
@@ -87,7 +87,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
     cop["pass_rate_retained"] = cop["passes"] / cop.loc[cop["policy"] == "agent alone", "passes"].iloc[0]
 
     os.makedirs("tables", exist_ok=True)
-    os.makedirs("figures", exist_ok=True)
+    os.makedirs(outdir, exist_ok=True)
     frontier.to_csv("tables/abort_frontier_warehouse.csv", index=False)
     cop.to_csv("tables/cost_of_pass_warehouse.csv", index=False)
 
@@ -109,11 +109,11 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
     ax.grid(alpha=0.25)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=9, loc="lower right")
-    fig.savefig("figures/abort_frontier_warehouse.png", dpi=200)
+    fig.savefig(f"{outdir}/abort_frontier_warehouse.png", dpi=200)
 
     print(frontier.to_string(index=False))
     print("\ncost of pass (USD):\n" + cop.to_string(index=False))
-    print("\nwrote figures/abort_frontier_warehouse.png + 2 tables")
+    print(f"\nwrote {outdir}/abort_frontier_warehouse.png + 2 tables")
     return frontier, cop
 
 

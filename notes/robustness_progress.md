@@ -42,10 +42,11 @@ must confirm them before anything relies on them.
    (pip-installable) + runnable no-data `examples/quickstart.py`; clean `pip install -e .`
    + demo verified in a FRESH isolated venv. The clean install CAUGHT + FIXED a real bug:
    scikit-learn was under-declared (required by lightgbm's sklearn API). test_guard passes.)
-8. Censored conformal resource-bound refinement — **Not started**
-   - `budget_guard/censored.py`, `run_censored.py`, `run_gated.py` already implement
-     rungs 1-3 per notes/week6.md (drop / bound / resource_bound / gated methods).
-     Unverified this pass — re-run and diff against the week6.md tables first.
+8. Censored conformal resource-bound refinement — **Blocked — needs PI sign-off**
+   (2026-07-07: rungs 1–3 VERIFIED reproducible this pass — resource_bound cost 0.46 /
+   time 0.90, qhat 64k, frac_binding 0.42 match week6; rung-3 gated + KM covered by the
+   7 passing test_censored tests. A tight proposal for the next increment is in the log;
+   not started pending PI scoping — no unilateral new methods direction.)
 9. Closed-loop limitation — **Not started**
 
 ## Log
@@ -256,3 +257,38 @@ test_guard.py passes inside the suite (**23 passed, 2 skipped**).
 
 Reproduce: `uv venv $env:TEMP\bg; uv pip install --python $env:TEMP\bg -e .;
 $env:TEMP\bg\Scripts\python examples\quickstart.py`  (or plain `pip install -e .`).
+
+### 2026-07-07 — Item 8 (censored refinement), loop iteration 6
+
+Status: **Blocked — needs PI sign-off.** Rungs 1–3 re-verified reproducible; a concrete
+next-increment proposal is below. Per the loop rules I did NOT start a new methods
+direction unilaterally.
+
+Verification this pass:
+- `run_censored`: resource_bound cost cov_feasible 0.863 / cov_cens_binding **0.459** /
+  qhat **63.5k** / frac_binding **0.422**; time resource_bound **0.90/0.90/0.90** — all
+  match week6 "P2 rung 2". drop/bound/km rows also reproduce (drop binding 0.50, bound
+  385k, km 0.58) as seen in the item-1 audit run this session.
+- `test_censored.py`: 7 tests pass (resource_bound x3, gated x2, km x2) inside the suite
+  (23 passed / 2 skipped). Rung-3 gated cost 0.92 was reproduced + committed earlier this
+  conversation (Phase-1).
+
+**PI-ready proposal — next increment: IPCW on the feasibility-gated (kept) subpopulation.**
+- Experiment: re-run IPCW-weighted conformal (already in `censored.upper_qhat(method=
+  "ipcw")`) but ONLY on the runs the gate keeps (predicted-feasible), and measure both
+  the empirical positivity (min p̂(uncensored|x) on kept) and coverage.
+- Hypothesis / what it would show: the un-gated IPCW failed because censoring is
+  near-deterministic in x (doom decidable from config → positivity/overlap violated,
+  week6 finding). The gate removes exactly that near-deterministic-doom mass, so on the
+  kept set p̂(uncensored|x) should be bounded away from 0 → positivity restored → IPCW
+  recovers *marginal* coverage (not just coverage-conditional-on-kept). Result either
+  way is publishable: positivity restored = "selective + IPCW conformal for multi-
+  resource agent budgets" (marginal guarantee); still-violated = the honest selective-
+  only story stands.
+- Effort: ~1–2 days (reuse ipcw + the gate; add a gated-IPCW variant, a positivity
+  diagnostic, and a coverage table; +1 test).
+- Why PI sign-off FIRST: (a) which guarantee to claim (marginal-on-full vs selective-
+  on-kept); (b) lit-review must confirm novelty vs conformalized-survival IPCW; (c) keep
+  it scoped — do NOT expand into a full survival-analysis subproject.
+
+No code changes this iteration (proposal + verification only).

@@ -70,6 +70,29 @@ drift/deployment, not the within-run table.
 - searchr1 sample sizes; agent-baseline vs guard evaluated on slightly different
   sample sets in C2 (fix like-for-like before submission).
 
+### Closed-loop / counterfactual-free evaluation (limitation + preliminary evidence)
+
+**Limitation (stated unconditionally).** All results here are on *logged* rollouts, which
+is counterfactual-free: in real deployment the guard's own abort decisions change the
+data it later calibrates on. When it aborts a doomed run, that run never completes, so its
+label never enters the online calibration stream — the calibration set becomes a
+self-selected sample of only the runs the guard let finish. The online-conformal coverage
+guarantee assumes the stream self-labels; under closed-loop selection that assumption is
+violated. This is a genuine threat to the deployment claim and is future work
+(off-policy / bandit-style correction).
+
+**Preliminary evidence (toy, synthetic — `scripts/run_closed_loop.py`, 5 seeds).** A toy
+simulation makes the failure mode concrete (real numbers from the sim; the DGP is
+synthetic and tuned only to expose the mechanism). Runs arrive over rounds; the guard
+aborts predicted-doom runs (which then never feed calibration); harder runs carry larger
+residual spread. Over 25 rounds the closed-loop guard's TRUE coverage on the full
+population it faces drifts from ~0.92 to **0.83**, while an oracle that counterfactually
+sees every label holds at **0.90** — and, crucially, the closed-loop guard's
+*self-measured* coverage (on its self-selected completed stream) stays at **0.91**, so it
+is blind to the bias it induces. Illustrative only, but the direction is real; it
+motivates an off-policy correction as the key next step for any deployment claim. See
+`figures/closed_loop.png`.
+
 ## Venue targets (ask PIs)
 - NeurIPS 2026 workshops: reliable/trustworthy ML, LLM agents, distribution shift.
 - ICML 2026 workshops (earlier deadline — check dates NOW; may force the schedule).

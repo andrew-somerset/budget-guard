@@ -47,7 +47,10 @@ must confirm them before anything relies on them.
    time 0.90, qhat 64k, frac_binding 0.42 match week6; rung-3 gated + KM covered by the
    7 passing test_censored tests. A tight proposal for the next increment is in the log;
    not started pending PI scoping — no unilateral new methods direction.)
-9. Closed-loop limitation — **Not started**
+9. Closed-loop limitation — **Done** (2026-07-07: limitation written unconditionally into
+   notes/positioning.md; toy closed-loop pilot (scripts/run_closed_loop.py) shows true
+   coverage drifts 0.92->0.83 vs oracle 0.90 while the guard self-measures 0.91 — the
+   blind spot; figure + test added.)
 
 ## Log
 
@@ -292,3 +295,27 @@ Verification this pass:
   it scoped — do NOT expand into a full survival-analysis subproject.
 
 No code changes this iteration (proposal + verification only).
+
+### 2026-07-07 — Item 9 (closed-loop limitation), loop iteration 7
+
+Status: **Done.** Both parts complete.
+
+1. **Limitation stated unconditionally** in notes/positioning.md (honest-limitations
+   section → new "Closed-loop / counterfactual-free evaluation" subsection): logged
+   evaluation is counterfactual-free; the guard's aborts self-select the calibration
+   stream, violating the online-conformal self-labeling assumption; off-policy correction
+   is future work.
+2. **Toy closed-loop pilot** (scripts/run_closed_loop.py, numpy-only, 5 seeds, synthetic):
+   over 25 rounds the closed-loop guard's TRUE full-population coverage drifts ~0.92 ->
+   **0.83**; an oracle that sees every label holds at **0.90**; the guard's SELF-measured
+   coverage stays at **0.91** — the blind spot. Figure figures/closed_loop.png; test
+   tests/test_closed_loop.py pins it (closed-loop < oracle-0.03 and < 0.88; self >= 0.87).
+
+Honest caveat (in the paragraph): synthetic DGP, tuned only to expose the mechanism —
+illustrative, not a measurement of the real system; motivates off-policy correction as the
+deployment next-step.
+
+Suite: **24 passed, 2 skipped** (+1 closed-loop test).
+
+Reproduce: `.venv\Scripts\python scripts\run_closed_loop.py`;
+`.venv\Scripts\python -m pytest tests/test_closed_loop.py -q`.

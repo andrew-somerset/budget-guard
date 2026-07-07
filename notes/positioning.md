@@ -104,3 +104,54 @@ motivates an off-policy correction as the key next step for any deployment claim
 3. Interval-driven stopping for C3 + dollars conversion (completes the story).
 4. Censored conformal (the methods contribution — scope with PIs first).
 5. Copula joint + Mondrian-by-depth (nice-to-have).
+
+## Robustness pass — results
+
+Outcome of the automated robustness loop (see `notes/robustness_progress.md` for the
+per-item log + exact reproduce commands). Verified this pass on the 3 opus runs available
+locally; tables needing the full 19-run × multi-model download are flagged DATA-BLOCKED.
+
+**Verified reproductions (re-derived this pass, not just quoted).** C1 coverage reproduces
+week3/4 exactly (sokoban ACI 0.920±0.019 / SPCI 0.916±0.019 / DtACI 0.936±0.011; swebench
+ACI 0.946±0.032 / SPCI 0.916±0.024 / DtACI 0.950±0.015); C2 joint 0.80 / 0.95 / 0.885; C3
+86.3% doomed-$ saved @ 0% false-abort; C4 −46% cost-of-pass; censored rungs 1–3. Synthetic
+audit tests pin the two load-bearing guarantees: split conformal hits nominal on i.i.d.
+data (within a rollout cluster-bootstrap CI), and under injected drift FROZEN conformal
+degrades while ONLINE recovers.
+
+**Lead = deployment shift.** The headline is transfer, not within-distribution: calibrated
+on sokoban and deployed cross-env, frozen split-CQR collapses to 0.10 [0.08, 0.13] on
+swebench while SPCI self-heals to 0.90 [0.86, 0.94] at 0% unbounded (ACI recovers only by
+surrendering to 58–86% unbounded intervals). Model-swap adds more scenarios but is
+data-blocked here.
+
+**Conditional coverage is what actually holds.** Marginal coverage is a mirage where
+trajectories are short: on sokoban the pooled 0.916 hides a k=1 slice at 0.860 — the
+first, highest-leverage abort decision — because one global qhat is set by the many easy
+late-turn prefixes. Mondrian-by-depth restores k=1 to 0.927 (worst-slice 0.855→0.895) at
+no cost where there is no hole (swebench over-covers throughout). Honest scope: a
+short-horizon phenomenon, not universal.
+
+**Honest baselines.** The trivial constant-quantile baseline is reported by default and is
+closer than comfortable — within ~0.03–0.05 coverage of the fitted guard, which earns its
+keep on SHARPNESS (20–56% narrower on BAGEN). Off-domain (a non-BAGEN source-code corpus)
+the unmodified pipeline still hits ~0.90 coverage but the baseline nearly matches (~10%
+width edge) — the guard's advantage is domain-dependent.
+
+**Label efficiency.** A handful of logged runs suffices: 5–8 calibration rollouts give
+~0.90 coverage; below that the finite-sample correction fails SAFE (2 rollouts → ~1.0
+over-coverage, never silent under-coverage). Curve carries a 5-seed band per env.
+
+**Artifact.** Pip-installable (`pip install -e .`) + a runnable no-data demo; a fresh-env
+install caught and fixed a missing scikit-learn dependency.
+
+**Limitation, stated plainly.** Logged evaluation is counterfactual-free; a toy closed-loop
+sim shows the guard's own aborts self-select its calibration stream, so its TRUE coverage
+drifts (0.92→0.83) while its self-measured coverage stays ~nominal (0.91) — off-policy
+correction is the deployment next-step.
+
+**Open (blocked, not skipped).** DATA-BLOCKED here (need the full 19-run × multi-model
+BAGEN download): the all-19 breadth table (`run_allruns` verified to execute; the 3/19
+opus runs all ≥ 0.85) and the model-swap transfer bars. PI-BLOCKED: the censored-conformal
+next increment (gated-IPCW / positivity — proposal in the progress log) and whether the
+by-depth cut belongs on the warehouse tables.

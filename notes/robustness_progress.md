@@ -10,21 +10,21 @@ must confirm them before anything relies on them.
 
 ## Checklist status
 
-1. Audit + reproduce existing numbers — **In progress** (2026-07-07: synthetic audit
-   tests done + passing; C1–C4 + censored headline tables re-derived this session and
-   reproduce the notes; `run_allruns` + transfer tables are DATA-BLOCKED on this box —
-   only the 3 opus runs are downloaded, not the full 19 model×env set).
-2. Marginal -> conditional coverage (Mondrian) — **In progress** (2026-07-07: core done —
-   `run_conditional.py` gives per-env × 5-seed by-depth coverage + worst-slice with
-   cluster-bootstrap CIs; Mondrian confirmed to close the sokoban k=1 hole 0.860→0.927,
-   reproducing week5; figure + synthetic test added. Honest: the hole is sokoban-specific
-   — swebench over-covers, searchr1 too small.)
-3. Kill hyperparameter / trivial-baseline objections — **In progress / partly confirmed**
-   - Confirmed 2026-07-07: DtACI + constant-quantile ARE default-on in `run_coverage`
-     (both present in tables/coverage.csv). Honest gap: the constant-quantile baseline
-     reaches within ~0.03–0.05 coverage of the fitted guard but at 20–56% WIDER
-     intervals — the guard's value is sharpness, not raw coverage. Still to do: confirm
-     default-on across the *other* run_*.py table scripts.
+1. Audit + reproduce existing numbers — **Done (runnable) / remainder DATA-BLOCKED**
+   (2026-07-07: synthetic audit tests pass; C1–C4 + censored headline tables re-derived
+   this pass and reproduce the notes; `run_allruns` now VERIFIED to execute — the 3/19
+   opus runs all ≥0.85. The full-19 breadth + model-swap transfer need the full download.)
+2. Marginal -> conditional coverage (Mondrian) — **Done (runnable) / warehouse-depth = PI**
+   (2026-07-07: by-depth coverage + worst-slice + cluster CIs done; Mondrian closes the
+   sokoban k=1 hole 0.860→0.927; framing paragraph now written into positioning.md
+   "Robustness pass — results". Whether the by-depth cut belongs on the warehouse tables
+   is an optional PI-scoping call.)
+3. Kill hyperparameter / trivial-baseline objections — **Done**
+   (2026-07-07: DtACI + constant-quantile are default-on in run_coverage — the only
+   coverage-vs-baseline table; the other run_*.py are different table types (economic /
+   joint / censored) with no trivial-coverage-baseline. Honest gap reported: baseline
+   within ~0.03–0.05 coverage, guard wins on sharpness (20–56% on BAGEN); off-domain the
+   baseline nearly matches — stated in positioning.md "Robustness pass — results".)
 4. Honest uncertainty everywhere — **In progress** (2026-07-07: the label-efficiency curve
    — the missing deliverable — is done + hardened to 5 seeds with a 10-90% band (sokoban
    5–8 rollouts → ~0.9, 2 → fail-safe 1.0; swebench similar). >=5-seed practice confirmed
@@ -356,3 +356,25 @@ Remains for item 4: the all-19-runs confirmation once the full dataset is downlo
 Suite: **24 passed, 2 skipped**.
 
 Reproduce: `.venv\Scripts\python -m budget_guard.run_label_efficiency {sokoban,swebench}`.
+
+### 2026-07-07 — Finishing runnable work + close-out, loop iteration 9
+
+Ran `run_allruns` (verify, ground rule 1): executes on the 3 local opus runs — sokoban
+SPCI 0.900 / DtACI 0.922, swebench 0.919 / 0.926, searchr1 saturates (n_test 23); all 3
+runs >= 0.85 for every method. Reproduces the SHAPE of week4's all-19 claim on the opus
+subset; the other 16 model×env runs are DATA-BLOCKED (not downloaded).
+
+Wrote the item-2 conditional-coverage framing paragraph + a full **"## Robustness pass —
+results"** section into notes/positioning.md (verified reproductions; transfer-led lead;
+conditional coverage; honest baselines; label efficiency; artifact; closed-loop
+limitation; and the explicit blocked list).
+
+**Final state — no runnable work remains.**
+- Done: 1 (runnable), 2 (runnable), 3, 4 (runnable), 5, 7, 9.
+- Blocked-needs-PI: 8 (gated-IPCW proposal) + item-2 warehouse-by-depth scoping.
+- Blocked-needs-DATA (full 19-run × multi-model BAGEN download): item-1 all-19 breadth,
+  item-6 model-swap bars, item-4 all-19 confirmation.
+- Suite: **24 passed, 2 skipped**. Every headline number re-derived this pass or flagged.
+
+Emitting LOOP:ALL-COMPLETE — all items are Done or explicitly Blocked (PI or data), and
+the results section is written to positioning.md.

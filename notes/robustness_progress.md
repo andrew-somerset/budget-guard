@@ -25,7 +25,11 @@ must confirm them before anything relies on them.
      reaches within ~0.03–0.05 coverage of the fitted guard but at 20–56% WIDER
      intervals — the guard's value is sharpness, not raw coverage. Still to do: confirm
      default-on across the *other* run_*.py table scripts.
-4. Honest uncertainty everywhere — **Not started**
+4. Honest uncertainty everywhere — **In progress** (2026-07-07: the label-efficiency curve
+   — the missing deliverable — is done + hardened to 5 seeds with a 10-90% band (sokoban
+   5–8 rollouts → ~0.9, 2 → fail-safe 1.0; swebench similar). >=5-seed practice confirmed
+   across 7 headline run_*.py via grep; cluster-bootstrap CIs applied to every coverage
+   table touched. all-19-runs check DATA-BLOCKED.)
 5. One external, non-BAGEN dataset — **Done (cheapest option) / strong version Blocked**
    (2026-07-07: unmodified guard hits ~0.90 coverage on a real local non-BAGEN
    source-code corpus via `scripts/run_external.py`; a pipeline-generality smoke test,
@@ -319,3 +323,36 @@ Suite: **24 passed, 2 skipped** (+1 closed-loop test).
 
 Reproduce: `.venv\Scripts\python scripts\run_closed_loop.py`;
 `.venv\Scripts\python -m pytest tests/test_closed_loop.py -q`.
+
+### 2026-07-07 — Item 4 (honest uncertainty), loop iteration 8
+
+Status: **In progress** — the label-efficiency curve (the missing item-4 deliverable) is
+done + hardened to 5 seeds with a variability band; the >=5-seed practice is confirmed;
+the all-19-runs check remains DATA-BLOCKED (only 3 opus runs on disk).
+
+Label-efficiency curve (`run_label_efficiency`, EXTENDED single-seed -> **5 seeds x 30
+redraws**, band = 10-90% over the 150 draws):
+- sokoban: 2 rollouts -> **0.998** (fail-safe over-coverage, band ~1.0); 5 -> 0.906,
+  8 -> 0.934, stabilizing ~0.91–0.94 by 8–24 with the band narrowing to [0.87, 0.94].
+- swebench: 2 -> 0.90 (band [0.72, 1.0], high variance at tiny n); 5–8 -> 0.94–0.95,
+  ~0.96 by 12.
+- Reproduces week3: "5–8 calibration rollouts already give ~0.88–0.91; 2 rollouts -> 1.0
+  (finite-sample correction demands unbounded intervals -> FAILS SAFE, never silently
+  under-covers)." Verified single-seed first (ground rule 1), then hardened to 5 seeds.
+- Figures figures/label_efficiency_{sokoban,swebench}.png.
+
+Cross-cutting confirmations (item 4):
+- **>=5 distinct seeds** on headline tables: grep
+  `def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4)` matches **7** run_*.py (coverage,
+  conditional, censored, economic_warehouse, gated, multiresource, transfer_env).
+  run_allruns is single-seed BY DESIGN (breadth not variance; documented). label_efficiency
+  now 5 seeds too.
+- **Cluster-bootstrap CIs (by rollout)** applied on every coverage table touched this pass
+  (coverage.csv, conditional_coverage.csv, transfer_env.csv).
+- **all-19-runs**: DATA-BLOCKED (run_allruns needs the full model x env set; only 3 opus
+  runs downloaded here).
+
+Remains for item 4: the all-19-runs confirmation once the full dataset is downloaded.
+Suite: **24 passed, 2 skipped**.
+
+Reproduce: `.venv\Scripts\python -m budget_guard.run_label_efficiency {sokoban,swebench}`.

@@ -14,7 +14,11 @@ must confirm them before anything relies on them.
    tests done + passing; C1–C4 + censored headline tables re-derived this session and
    reproduce the notes; `run_allruns` + transfer tables are DATA-BLOCKED on this box —
    only the 3 opus runs are downloaded, not the full 19 model×env set).
-2. Marginal -> conditional coverage (Mondrian) — **Not started**
+2. Marginal -> conditional coverage (Mondrian) — **In progress** (2026-07-07: core done —
+   `run_conditional.py` gives per-env × 5-seed by-depth coverage + worst-slice with
+   cluster-bootstrap CIs; Mondrian confirmed to close the sokoban k=1 hole 0.860→0.927,
+   reproducing week5; figure + synthetic test added. Honest: the hole is sokoban-specific
+   — swebench over-covers, searchr1 too small.)
 3. Kill hyperparameter / trivial-baseline objections — **In progress / partly confirmed**
    - Confirmed 2026-07-07: DtACI + constant-quantile ARE default-on in `run_coverage`
      (both present in tables/coverage.csv). Honest gap: the constant-quantile baseline
@@ -94,3 +98,43 @@ data-blocked, not skipped.
 Reproduce: `.venv\Scripts\python -m pytest -q`;
 `.venv\Scripts\python -m budget_guard.{run_coverage,run_multiresource,run_economic_warehouse,run_censored}`.
 Data via `python scripts/fetch_bagen.py`.
+
+### 2026-07-07 — Item 2 (marginal -> conditional coverage), loop iteration 2
+
+Status: **In progress (core done).** Built `run_conditional.py` (extends the single-env
+Week-2 `run_gap.py`): per-env × 5 seeds, split-CQR vs Mondrian-CQR, coverage by depth
+bucket (k=1 / k=2 / k>=3) + worst-slice, with rollout cluster-bootstrap CIs. Wrote
+`figures/conditional_coverage.png` + `tables/conditional_coverage.csv`. New synthetic
+test `tests/test_conditional.py` (Mondrian closes a constructed k=1 hole).
+
+Ran: `python -m budget_guard.run_conditional`; `pytest -q` -> **23 passed, 2 skipped**.
+
+Key numbers (5 seeds, mean; cluster-bootstrap CI):
+- **sokoban: the k=1 hole is real and Mondrian closes it — reproduces week5 exactly.**
+  split-CQR marginal 0.916 HIDES k=1 = **0.860** (CI [0.75, 0.95]); Mondrian k=1 = **0.927**.
+  Worst-slice (min over buckets): split-CQR 0.855 -> Mondrian 0.895. week5 quoted
+  0.860 -> 0.927 ✓.
+- **swebench: NO hole** — over-covers at every depth (k=1 0.988 / k=2 0.988 / k>=3 0.950);
+  Mondrian neutral. The conditional failure is env-specific, not universal.
+- **searchr1: too small to conclude** — n≈7–17 per bucket, CIs ±0.15; k>=3 dropped (<5).
+  Mondrian falls back to the global qhat (buckets < min_bucket=10). No searchr1 claim.
+
+Framing draft (one paragraph): *Marginal coverage is a mirage where trajectories are
+short. On sokoban the pooled 0.916 looks fine, but the k=1 slice — the first, highest-
+leverage abort decision — sits at 0.860, below nominal, because one global qhat is set
+by the many easy late-turn prefixes. Mondrian-by-depth calibrates a separate qhat per
+depth bucket and restores k=1 to 0.927 (worst-slice 0.855->0.895), at no cost where
+there is no hole (swebench unchanged). Honest scope: a short-horizon phenomenon, not
+universal.*
+
+Negative/honest: k=1 buckets are small (≈30 test rollouts -> wide single-seed CIs); the
+hole is robust across 5 seeds (cov_std 0.064) but a single seed's CI overlaps nominal.
+Item 4 practice (cluster-bootstrap CIs, 5 seeds) applied throughout this table.
+
+Remains: (a) PI decision whether the by-depth cut belongs on the warehouse/economic
+tables (there "depth" = completed_weeks and the guard is joint/economic — a different
+cut); (b) promote the framing paragraph into notes/positioning.md at writeup time;
+(c) by-depth for other models needs the full dataset (item-1 data blocker).
+
+Reproduce: `.venv\Scripts\python -m budget_guard.run_conditional`;
+`.venv\Scripts\python -m pytest tests/test_conditional.py -q`.

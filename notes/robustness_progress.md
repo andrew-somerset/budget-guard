@@ -26,7 +26,11 @@ must confirm them before anything relies on them.
      intervals — the guard's value is sharpness, not raw coverage. Still to do: confirm
      default-on across the *other* run_*.py table scripts.
 4. Honest uncertainty everywhere — **Not started**
-5. One external, non-BAGEN dataset — **Not started**
+5. One external, non-BAGEN dataset — **Done (cheapest option) / strong version Blocked**
+   (2026-07-07: unmodified guard hits ~0.90 coverage on a real local non-BAGEN
+   source-code corpus via `scripts/run_external.py`; a pipeline-generality smoke test,
+   NOT agent-domain. Strong agent-domain validation — real agent logs / AssetOpsBench /
+   GM units — Blocked-needs-resources; proposal in log.)
 6. Transfer-led main figure — **Not started**
    - `run_transfer.py` and `run_transfer_env.py` exist on disk already. Unverified —
      confirm they run and reproduce the 12-76% collapse number cited in
@@ -138,3 +142,52 @@ cut); (b) promote the framing paragraph into notes/positioning.md at writeup tim
 
 Reproduce: `.venv\Scripts\python -m budget_guard.run_conditional`;
 `.venv\Scripts\python -m pytest tests/test_conditional.py -q`.
+
+### 2026-07-07 — Item 5 (external non-BAGEN dataset), loop iteration 3
+
+Status: **Done for the stated Done-when (cheapest option); strong agent-domain external
+validation Blocked — needs resources.** AssetOpsBench is only named in the loop prompt,
+not scoped in implementation_plan.md; real-agent logging needs an API key; GM cost units
+need Andrew/data access. So I did the cheapest viable no-API, no-new-dep, no-fabrication
+option.
+
+Built `scripts/run_external.py`: runs the UNMODIFIED guard (same build_xy + conformal
+path as BAGEN, zero per-dataset special-casing) on a real LOCAL non-BAGEN corpus — 621
+source files (venv site-packages + repo), each file a "session", blank-line blocks as
+"turns", per-turn "tokens" from the repo's OWN word tokenizer
+(extract._rough_text_token_count), all real measured counts. 10,089 prefix samples,
+median 645 tokens/session; predicts remaining-tokens-to-end from prefix-only features.
+
+Result (5 seeds, rollout cluster-bootstrap CI):
+| method | coverage | CI | norm. width |
+|---|---|---|---|
+| constant-quantile | 0.894 | [0.873, 0.916] | 1.27 |
+| split-absres | 0.900 | [0.871, 0.928] | 1.08 |
+| split-CQR | 0.905 | [0.871, 0.942] | 1.14 |
+
+Findings:
+- **POSITIVE generality:** the unmodified guard is well-calibrated off BAGEN — split-CQR
+  0.905 / split-absres 0.900, both CIs contain nominal 0.90. The pipeline is not
+  secretly BAGEN-specific.
+- **NEGATIVE / honest (item-3 cross-cut):** on THIS domain the trivial constant-quantile
+  baseline (0.894, norm width 1.27) is nearly as good — split-CQR is only ~0.01 higher
+  coverage and ~10% sharper (vs 20–56% sharper on BAGEN). Burn-rate features carry much
+  less signal for code length than for agent budgets. State this plainly in the writeup.
+- **Limitations:** source code, NOT agent trajectories; short sessions (~645 tok);
+  offline only (no drift/transfer tested); "tokens" = word-level counts, not real LLM
+  tokens. A PIPELINE-GENERALITY smoke test, not deployment-transfer evidence.
+
+Verification: `python scripts/run_external.py` runs end-to-end to the table above;
+reuses already-tested library code unmodified; `pytest -q` still **23 passed, 2 skipped**.
+The corpus is regenerable from the checked-in script (not committed — gitignored/large).
+
+BLOCKED — needs PI/human for the STRONG (agent-domain) external validation:
+- Option A (best): log ~30 real tool-using agent runs (Claude Code / SWE-agent) with
+  per-turn token usage -> extractor schema -> guard. Needs a small API budget.
+- Option B: AssetOpsBench, IF its trajectories expose per-step token/resource usage
+  (unverified; not scoped in implementation_plan.md); ~1 day to parse.
+- Option C: Andrew's anonymized GM cost-unit trajectories; needs data access + sign-off.
+Proposal: authorize a small API budget for Option A (~30 runs) — highest-value,
+self-contained agent-domain evidence.
+
+Reproduce: `.venv\Scripts\python scripts\run_external.py`.

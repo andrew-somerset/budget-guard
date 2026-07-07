@@ -31,10 +31,13 @@ must confirm them before anything relies on them.
    source-code corpus via `scripts/run_external.py`; a pipeline-generality smoke test,
    NOT agent-domain. Strong agent-domain validation — real agent logs / AssetOpsBench /
    GM units — Blocked-needs-resources; proposal in log.)
-6. Transfer-led main figure — **Not started**
-   - `run_transfer.py` and `run_transfer_env.py` exist on disk already. Unverified —
-     confirm they run and reproduce the 12-76% collapse number cited in
-     notes/positioning.md before building the figure on top of them.
+6. Transfer-led main figure — **In progress** (2026-07-07: cross-env transfer figure done
+   + reproduced with 5-seed cluster-bootstrap CIs — frozen split-CQR collapses to 0.10 on
+   sokoban->swebench, SPCI self-heals to 0.90 at 0% unbounded. Model-SWAP (run_transfer)
+   DATA-BLOCKED: needs other-model swebench dialogues, only opus on disk.)
+   - `run_transfer.py` and `run_transfer_env.py` exist on disk already. run_transfer_env
+     VERIFIED reproducing week3/4; run_transfer verified to import but target_runs()
+     returns empty here (data-blocked).
 7. Ship the wrapper as generality proof — **Not started**
    - `budget_guard/guard.py` (`BudgetGuard` class), a README wrapper-API section,
      and `tests/test_guard.py` already exist on disk (new/untracked as of 2026-07-07).
@@ -191,3 +194,34 @@ Proposal: authorize a small API budget for Option A (~30 runs) — highest-value
 self-contained agent-domain evidence.
 
 Reproduce: `.venv\Scripts\python scripts\run_external.py`.
+
+### 2026-07-07 — Item 6 (transfer-led figure), loop iteration 4
+
+Status: **In progress** — cross-env transfer figure done + reproduced with CIs; model-swap
+(run_transfer) DATA-BLOCKED (needs other-model swebench dialogues; only opus on disk).
+
+Verified `run_transfer_env` (seed 0) reproduces week3/week4 cross-env EXACTLY:
+sokoban->swebench frozen split-CQR 0.119 (week3 0.12), SPCI 0.903 (week3 0.903, 0%
+unbounded); sokoban->searchr1 frozen 0.506 (0.51), SPCI 0.713 (0.71 at w=100 — the
+documented window miss), ACI 0.87 w/ 61% unbounded. Then extended it to **5 seeds +
+rollout cluster-bootstrap CIs** (item-4 hygiene) with an error-bar figure.
+
+5-seed transfer-led headline (figures/transfer_env.png, tables/transfer_env.csv):
+| scenario | frozen split-CQR | ACI-CQR | SPCI |
+|---|---|---|---|
+| sokoban->searchr1 | 0.51 [0.40,0.62] | 0.82 (58% unbounded) | 0.73 [0.65,0.81] |
+| sokoban->swebench | **0.10 [0.08,0.13]** | 0.89 (86% unbounded) | **0.90 [0.86,0.94]** (0% unb.) |
+
+Framing (THE LEAD): frozen conformal collapses to **0.10** on the hardest cross-env shift
+(sokoban->swebench) — the "12-76% collapse" low end, reproduced. SPCI self-heals to nominal
+0.90 with 0% unbounded; ACI "recovers by surrender" (near-nominal but 58-86% unbounded).
+This transfer figure is the paper's LEAD; the within-distribution tables (items 1-2) are
+supporting material.
+
+Reproduced/corrected: the 12% low end -> 0.10 (5-seed mean, CI [0.08,0.13]). The 76% HIGH
+end of the collapse range was the model-SWAP gpt-5.2 case (week3), DATA-BLOCKED here.
+
+Remains: model-swap bars (sonnet/gemini/gpt/qwen) via run_transfer once the full dataset
+is downloaded. Suite: **23 passed, 2 skipped**.
+
+Reproduce: `.venv\Scripts\python -m budget_guard.run_transfer_env`.

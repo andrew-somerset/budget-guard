@@ -1,6 +1,6 @@
 # budget-guard — current state & next steps
 
-_Last updated 2026-07-07._
+_Last updated 2026-07-20 (development branch)._
 
 ## Snapshot
 Training-free, distribution-free **budget guards** for long-horizon LLM agents: online
@@ -30,27 +30,34 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   no-data demo (`examples/quickstart.py`). A fresh-env install caught and fixed a missing
   scikit-learn dependency.
 - **Reproducibility:** Python 3.12 venv + `scripts/fetch_bagen.py` (minimal ~105 MB data
-  subset); every headline number re-derived this pass; test suite 24 passed / 2 skipped.
+  subset expanded to every model needed by the experiments; BAGEN revision + exact Python
+  dependencies pinned; every headline number re-derived; full suite collected 30 tests
+  (28 pass / 2 existing data-path skips).
+- **Full breadth + model transfer:** all 19 token-budget model×environment runs now execute;
+  SWE-bench model swap confirms frozen 0.38–0.76 vs SPCI 0.91–0.93 at 0% unbounded.
+- **External-budget transfer + adaptive joint method (development):** Opus 4.7 → four
+  Warehouse models initially gives frozen Bonferroni joint coverage 0.66–0.79. A new
+  rollout-safe recent-error window updates all three resource margins plus their shared
+  empirical-copula rank, raising joint coverage to 0.86–0.88 overall and 0.87–0.90 in
+  the late half (five seeds; every rollout-cluster 90% CI includes 0.90; 0% unbounded).
 
 ## What's blocked (documented, not skipped)
-- **Data-blocked** — this machine has only the 3 opus runs; the full 19-run × multi-model
-  BAGEN set is not downloaded. Outstanding: the all-19 breadth table and the model-swap
-  transfer bars. `run_allruns` and `run_transfer` are verified to execute — they just
-  need the full download.
 - **PI-blocked** — which censored-conformal guarantee to claim (selective-on-kept vs
   marginal); the next methods increment (gated-IPCW / positivity restoration — proposal
-  in `notes/robustness_progress.md`); and whether the by-depth cut belongs on the
-  warehouse tables.
+  in `notes/robustness_progress.md`); whether adaptive joint calibration should be joined
+  to the feasibility gate for censored/doomed Warehouse runs; and whether the by-depth
+  cut belongs on the warehouse tables.
 
 ## Next steps (prioritized)
 1. **PI meeting** — sign off on (a) the censored-conformal guarantee framing + the
-   gated-IPCW next increment, and (b) the target venue. These gate the methods section.
-2. **On a full-dataset machine** — download the full BAGEN set, then run `run_allruns`
-   (all-19 breadth) and `run_transfer` (model-swap bars) to complete the two data-blocked
-   headline pieces.
-3. **Write-up** — 4-pager led by the transfer figure; methods section around censored
-   rungs 1–3; related-work table + resolve the remaining unresolved citations (lit-review
-   team).
+  gated-IPCW next increment, (b) whether to connect adaptive joint calibration to the
+  feasibility gate, and (c) the target venue. These gate the methods framing.
+2. **Write-up** — 4-pager led by the transfer figure; add the internal-vs-external contrast
+  (token shift recovers to 0.91–0.93; Warehouse joint shift to 0.86–0.88 overall);
+  methods section around censored rungs 1–3 + rollout-safe adaptive joint calibration;
+  related-work table + unresolved citations.
+3. **Artifact release** — replace the placeholder LICENSE holder, prepare an anonymized
+  submission repository, and archive the exact release/data revision for a permanent DOI.
 4. **Submit** — NeurIPS 2026 workshop (~Oct; watch the slate confirmed ~Sep 29); consider
    COPA / AISTATS 2027 for the methods angle. Submit fast — the BAGEN team targets
    NeurIPS 2026 main with public code (scoop risk).

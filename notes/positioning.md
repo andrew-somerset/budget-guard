@@ -150,8 +150,23 @@ sim shows the guard's own aborts self-select its calibration stream, so its TRUE
 drifts (0.92→0.83) while its self-measured coverage stays ~nominal (0.91) — off-policy
 correction is the deployment next-step.
 
-**Open (blocked, not skipped).** DATA-BLOCKED here (need the full 19-run × multi-model
-BAGEN download): the all-19 breadth table (`run_allruns` verified to execute; the 3/19
-opus runs all ≥ 0.85) and the model-swap transfer bars. PI-BLOCKED: the censored-conformal
-next increment (gated-IPCW / positivity — proposal in the progress log) and whether the
-by-depth cut belongs on the warehouse tables.
+**Open (blocked, not skipped).** ~~DATA-BLOCKED~~ **Resolved 2026-07-20**: the full 19-run
+× multi-model BAGEN download was fetched and both the all-19 breadth table (`run_allruns`,
+19/19 rows — split-CQR/SPCI/DtACI all clear 0.85 on the great majority of runs) and the
+model-swap transfer bars (`run_transfer`, 4/4 target models — frozen split-CQR collapses
+to 0.38–0.76, SPCI recovers to 0.91–0.93 at 0% unbounded) are now complete; see
+`notes/robustness_progress.md`'s 2026-07-20 entry for the full numbers. Still PI-BLOCKED:
+the censored-conformal next increment (gated-IPCW / positivity — proposal in the progress
+log) and whether the by-depth cut belongs on the warehouse tables. **Also resolved
+2026-07-20**: the internal-vs-external transfer gap now has a first answer —
+`run_transfer_warehouse.py` (new, reuses existing code only) shows frozen joint coverage
+on Warehouse degrades more gently under model-swap (0.67–0.81 joint vs 0.90 nominal, 4
+target models) than the token-budget collapse did, but is still a real, honest shortfall.
+**Adaptive-joint follow-up (development branch, five seeds):** a rollout-safe recent-error
+window now updates both each resource margin and their shared empirical-copula rank, but
+only after each whole rollout finishes. It raises joint coverage from frozen Bonferroni's
+0.66–0.79 to **0.86–0.88 overall** and **0.87–0.90 in the late half**, with 0% unbounded
+intervals; every rollout-cluster 90% CI contains the 0.90 target. Honest claim: substantial,
+statistically target-compatible recovery — not perfect 0.90 point coverage and not a proof
+under arbitrary shift. It only learns from feasible/completed rollouts; connecting it to
+the censored feasibility gate remains PI-scoped like item 8.

@@ -1,12 +1,16 @@
 # CPU-only stack for the offline conformal infrastructure (no verl / vllm / GPU).
-# Unpinned for cross-platform (Windows / Mac / Colab) during development.
-# Pin exact versions at the Week-6 freeze.
-pandas
-numpy
-scikit-learn
-lightgbm
-scipy
-matplotlib
-jupyter
-pytest
-huggingface_hub
+# Pinned 2026-07-20 (Python 3.12, Windows .venv) for NeurIPS/ICML reproducibility —
+# these are the exact versions every reported number in notes/week*.md was
+# re-derived against during the robustness pass. To upgrade deliberately: bump
+# versions in a dedicated commit, re-run the full test suite + headline tables,
+# and note any numeric drift in notes/robustness_progress.md.
+pandas==3.0.3
+numpy==2.5.1
+scikit-learn==1.9.0
+lightgbm==4.6.0
+scipy==1.18.0
+matplotlib==3.11.0
+jupyter==1.1.1
+pytest==9.1.1
+huggingface_hub==1.22.0
+

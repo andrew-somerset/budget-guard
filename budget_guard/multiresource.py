@@ -10,9 +10,13 @@ Joint methods:
   but the *joint* event (all three covered at once) does not.
 - ``bonferroni_joint``: split-CQR per resource at alpha/3 — union bound guarantees
   joint coverage ≥ 1-alpha, at the price of wider margins.
+- ``adaptive_joint_intervals``: keep a recent window of three-resource error vectors,
+    updating only after a whole rollout finishes; recompute both resource margins and
+    their shared empirical-copula rank as the deployment stream changes.
 """
 from __future__ import annotations
 
+from collections import deque
 import json
 
 import numpy as np
@@ -112,6 +116,169 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     X["cash_gap"] = X["current_cash_usd"] - X["target_cash_usd"]
     X["weeks_left_of_budget"] = X["budget_time_weeks"] - X["completed_weeks"]
     return X
+
+
+def _joint_rank_qhats(score_mat: np.ndarray, alpha: float) -> tuple[np.ndarray, float]:
+    """Smallest shared marginal rank whose thresholds cover enough score vectors.
+
+    Each row is one observation and each column is one resource's CQR conformity
+    score. We move one *shared* rank upward until at least
+    ``ceil((n + 1) * (1 - alpha))`` rows fall below all resource thresholds at once.
+    This is the empirical-copula combination step with the finite-sample correction.
+
+    Returns ``(resource_qhats, shared_rank_level)``. With too few observations for a
+    finite corrected quantile, all qhats are ``+inf`` — a deliberate fail-safe rather
+    than a falsely narrow joint interval.
+    """
+    scores = np.asarray(score_mat, dtype=float)
+    if scores.ndim != 2 or scores.shape[1] == 0:
+        raise ValueError("score_mat must have shape (observations, resources)")
+    if not 0 < alpha < 1:
+        raise ValueError("alpha must be between 0 and 1")
+
+    n, n_resources = scores.shape
+    if n == 0:
+        return np.full(n_resources, np.inf), 1.0
+    required = int(np.ceil((n + 1) * (1 - alpha)))
+    if required > n:
+        return np.full(n_resources, np.inf), 1.0
+
+    ordered = np.sort(scores, axis=0)
+    for rank_idx in range(required - 1, n):
+        qhats = ordered[rank_idx]
+        joint_ok = int(np.all(scores <= qhats, axis=1).sum())
+        if joint_ok >= required:
+            return qhats.copy(), float((rank_idx + 1) / n)
+    return ordered[-1].copy(), 1.0
+
+
+def adaptive_joint_qhats(
+    cal_scores: np.ndarray,
+    stream_scores: np.ndarray,
+    stream_groups: np.ndarray,
+    alpha: float = DEFAULT_ALPHA,
+    window: int = 100,
+) -> tuple[np.ndarray, dict]:
+    """Rollout-safe online calibration of all resource margins *and* their coupling.
+
+    The window starts with source-environment calibration score vectors. For each new
+    rollout, one joint set of resource qhats is computed from the current window and
+    used for every prefix in that rollout. Only after all those predictions are made
+    are the rollout's true score vectors added to the window. This prevents a subtle
+    future leak: a completed rollout's final resource totals are not available while
+    its earlier prefixes are still being predicted.
+
+    Recomputing the shared empirical-copula rank adapts both the three margins and how
+    their errors move together. ``window`` counts recent prefix score vectors, but all
+    vectors enter atomically by completed rollout. This is an empirical online method,
+    not a proof of finite-sample validity under arbitrary distribution shift; report
+    its rollout-cluster confidence interval rather than claiming a universal guarantee.
+    """
+    cal = np.asarray(cal_scores, dtype=float)
+    stream = np.asarray(stream_scores, dtype=float)
+    groups = np.asarray(stream_groups)
+    if cal.ndim != 2 or stream.ndim != 2 or cal.shape[1] != stream.shape[1]:
+        raise ValueError("cal_scores and stream_scores must be 2-D with equal columns")
+    if len(stream) != len(groups):
+        raise ValueError("stream_groups must have one value per stream score row")
+    if window < 1:
+        raise ValueError("window must be positive")
+
+    recent = deque((row.copy() for row in cal[-window:]), maxlen=window)
+    qhat_path = np.empty_like(stream, dtype=float)
+    shared_level_path = np.empty(len(stream), dtype=float)
+    rollout_order = list(dict.fromkeys(groups.tolist()))
+
+    for rollout in rollout_order:
+        idx = np.flatnonzero(groups == rollout)
+        current = np.asarray(recent, dtype=float)
+        if current.size == 0:
+            current = np.empty((0, stream.shape[1]), dtype=float)
+        qhats, shared_level = _joint_rank_qhats(current, alpha)
+        qhat_path[idx] = qhats
+        shared_level_path[idx] = shared_level
+        # Atomic update: no prefix in this rollout can influence another prefix from
+        # the same rollout. Labels become available only when the rollout finishes.
+        recent.extend(row.copy() for row in stream[idx])
+
+    return qhat_path, {
+        "window": window,
+        "shared_level_path": shared_level_path,
+        "rollout_order": rollout_order,
+    }
+
+
+def adaptive_joint_intervals(
+    source_df: pd.DataFrame,
+    source_masks: dict[str, np.ndarray],
+    stream_df: pd.DataFrame,
+    alpha: float = DEFAULT_ALPHA,
+    window: int = 100,
+) -> dict:
+    """Frozen CQR models + rollout-safe adaptive joint calibration on a new stream.
+
+    Models are fit only on the source TRAIN split. The online window is warm-started
+    from source CAL score vectors. Target labels are used strictly *after* each target
+    rollout's predictions, via :func:`adaptive_joint_qhats`; they are never used to
+    refit the models. This is the multi-resource counterpart of the project's windowed
+    SPCI idea, with the empirical-copula combination recalibrated at every rollout.
+
+    As with the existing C2 comparison, ``stream_df`` must contain feasible rows with
+    observed remaining-resource labels. Censored/doomed rollouts need the separate gate
+    in ``censored.py`` and are not silently treated as fully observed here.
+    """
+    from .conformal import _cqr_scores, _fit_cqr
+
+    X_source = build_features(source_df)
+    X_stream = build_features(stream_df)
+    tr, ca = source_masks["train"], source_masks["cal"]
+
+    cal_columns = []
+    stream_columns = []
+    stream_preds = {}
+    for res in RESOURCES:
+        y_source = source_df[f"y_{res}"].to_numpy(dtype=float)
+        y_stream = stream_df[f"y_{res}"].to_numpy(dtype=float)
+        mlo, mhi = _fit_cqr(X_source[tr], y_source[tr], alpha)
+        cal_columns.append(
+            _cqr_scores(mlo.predict(X_source[ca]), mhi.predict(X_source[ca]), y_source[ca])
+        )
+        qlo_stream, qhi_stream = mlo.predict(X_stream), mhi.predict(X_stream)
+        stream_preds[res] = (qlo_stream, qhi_stream)
+        stream_columns.append(_cqr_scores(qlo_stream, qhi_stream, y_stream))
+
+    cal_score_mat = np.column_stack(cal_columns)
+    stream_score_mat = np.column_stack(stream_columns)
+    frozen_qhats, frozen_shared_level = _joint_rank_qhats(cal_score_mat, alpha)
+    qhat_path, metadata = adaptive_joint_qhats(
+        cal_score_mat,
+        stream_score_mat,
+        stream_df["rollout_index"].to_numpy(),
+        alpha=alpha,
+        window=window,
+    )
+    intervals = {}
+    frozen_intervals = {}
+    for i, res in enumerate(RESOURCES):
+        qlo_stream, qhi_stream = stream_preds[res]
+        intervals[res] = (
+            np.maximum(qlo_stream - qhat_path[:, i], 0.0),
+            qhi_stream + qhat_path[:, i],
+        )
+        frozen_intervals[res] = (
+            np.maximum(qlo_stream - frozen_qhats[i], 0.0),
+            qhi_stream + frozen_qhats[i],
+        )
+    return {
+        "intervals": intervals,
+        "frozen_intervals": frozen_intervals,
+        "qhat_path": qhat_path,
+        "frozen_qhats": frozen_qhats,
+        "frozen_shared_level": frozen_shared_level,
+        "cal_score_mat": cal_score_mat,
+        "stream_score_mat": stream_score_mat,
+        **metadata,
+    }
 
 
 def joint_intervals(

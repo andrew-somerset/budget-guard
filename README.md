@@ -35,6 +35,22 @@ It prints the `(x_t, y_t)` table and runs invariants. Field definitions:
 [`budget_guard/data_dictionary.md`](budget_guard/data_dictionary.md).
 Full Week-1 steps: [`docs/bagen_week1_walkthrough.md`](docs/bagen_week1_walkthrough.md).
 
+## Reproduce the transfer experiments
+
+Fetch the exact pinned BAGEN revision used by the reported tables, then run the internal
+(token) and external (Warehouse) model-swap experiments:
+
+```bash
+python scripts/fetch_bagen.py
+python -m budget_guard.run_transfer
+python -m budget_guard.run_transfer_warehouse
+```
+
+The Warehouse experiment compares frozen baselines with rollout-safe adaptive joint
+calibration: all prefixes in a rollout are predicted first, and the three-resource error
+window updates only after that rollout finishes. It writes aggregate and per-seed CSVs plus
+`figures/transfer_warehouse.png`. Data and generated artifacts are gitignored by design.
+
 ## Use the guard (wrapper API)
 
 `BudgetGuard` is the drop-in artifact: wrap any agent loop with a **training-free**

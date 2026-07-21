@@ -1,6 +1,14 @@
 # budget-guard — current state & next steps
 
-_Last updated 2026-07-20 (development branch)._
+_Last updated 2026-07-21 (development branch)._
+
+> **2026-07-21 correction (read first):** the single-resource online evaluation had a
+> within-rollout label-revelation leak, now fixed (rollout-safe revelation everywhere +
+> regression test). Corrected headlines: cross-env SPCI 0.10 → **0.80** recovery (not
+> 0.90) at 0% unbounded; model-swap SPCI **0.66–0.89** (not 0.91–0.93); within-
+> distribution and all frozen numbers unchanged; multi-resource adaptive joint
+> (0.86–0.88) was already rollout-safe and stands. See robustness_progress.md
+> 2026-07-21. Quoted transfer numbers below predate the fix.
 
 ## Snapshot
 Training-free, distribution-free **budget guards** for long-horizon LLM agents: online

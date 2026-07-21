@@ -196,3 +196,17 @@ intervals; every rollout-cluster 90% CI contains the 0.90 target. Honest claim: 
 statistically target-compatible recovery — not perfect 0.90 point coverage and not a proof
 under arbitrary shift. It only learns from feasible/completed rollouts; connecting it to
 the censored feasibility gate remains PI-scoped like item 8.
+
+**Audit correction (2026-07-21) — the transfer headline itself.** The single-resource
+online evaluation revealed each prefix's label immediately after prediction; remaining-
+to-completion labels only exist at rollout end. With rollout-safe revelation (labels enter
+the update state at rollout boundaries only — now the default in every run script, with a
+regression test pinning it): sokoban→swebench SPCI is **0.80** (not 0.90) at 0% unbounded;
+model-swap SPCI is **0.66–0.89** (not 0.91–0.93); ACI reaches 0.83–0.90 only at 52–86%
+unbounded; frozen collapse (0.10; 0.38–0.76) unchanged; within-distribution ~unchanged.
+RETRACT "self-heals to 0.90 at 0% unbounded." The honest, still-strong lead: frozen
+conformal collapses under shift, deployment-faithful online conformal recovers most of it
+(0.10 → 0.80) with finite intervals — consistent with the rollout-safe Warehouse adaptive
+joint (0.86–0.88). The residual gap to nominal motivates the PI-scoped methods increment
+(rollout-count windows / unified calibrator; any new window chosen on CAL only,
+predeclared). Details + full tables: notes/robustness_progress.md 2026-07-21 entry.

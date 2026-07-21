@@ -717,3 +717,59 @@ identically to cal and serve (exchangeability preserved); the negative-qhat shri
 intervals; online updates still occur strictly after natural completion. Full suite after fixes:
 **60 passed / 2 skipped**, exit 0. Recommended next engineering step before any write-up: unify the
 two joint calibrators and pick the window from a non-degenerate operating point.
+
+### 2026-07-21 — Rollout-safe label revelation in the single-resource online evaluation (leak fix; HEADLINE NUMBERS CHANGE)
+
+Status: **Implemented + re-run.** External PI audit found that `conformal.py`'s online
+methods (`spci`, `aci_cqr`, `dtaci`) revealed each prefix's label immediately after its
+prediction. A prefix's label y (remaining-to-completion) is only observable when its
+ROLLOUT finishes; revealing y_1 mid-rollout reveals the rollout total and hence every
+later y_k exactly. `guard.py` and `multiresource.adaptive_joint_qhats` already used
+rollout-atomic revelation — the evaluation scripts did not, so the headline transfer
+numbers were computed under a schedule the deployed artifact cannot have.
+
+**Fix.** All three online methods now take a `groups` array (rollout ids aligned with the
+test stream) and buffer each rollout's scores/errors, absorbing them only at the next
+rollout boundary. `tune_gamma` tunes under the same schedule. All run scripts pass groups.
+Per-step revelation (`groups=None`) remains for genuinely per-step-labeled streams only.
+New deterministic regression test (`test_rollout_safe_revelation_freezes_within_rollout`,
+LGBM-free via a stubbed `_fit_cqr`): with groups, predictions within a rollout are
+invariant to that rollout's own labels, and react only after its boundary; a positive
+control shows per-step revelation is not invariant (the test can see the leak).
+`test_audit.py`'s drift test now pins recovery under rollout-safe revelation.
+
+**Corrected numbers (per-prefix → rollout-safe).** Frozen methods unchanged by construction.
+- `run_transfer_env` sokoban→swebench: SPCI 0.903 → **0.798** (0% unbounded);
+  ACI 0.891 → 0.878 (86% unbounded); frozen 0.103. searchr1: SPCI 0.726 → 0.710.
+- `run_transfer` (model swap, swebench): SPCI 0.906/0.924/0.916/0.925 →
+  **0.724/0.661/0.889/0.666** (all 0% unbounded); ACI 0.90 → 0.83–0.90 at 52–80%
+  unbounded (was 13–50%); frozen 0.38–0.76 unchanged.
+- `run_coverage` (within-distribution, 5 seeds): sokoban ~unchanged (SPCI 0.916);
+  searchr1 ~unchanged; swebench online drops 0.92–0.95 → **0.87–0.94** (long rollouts =
+  the prior within-rollout adaptation was doing real leaked work there).
+- `run_allruns` (19 runs, seed 0): fraction ≥0.85 — split-CQR 0.737 (unchanged),
+  SPCI 1.00 → **0.947**, DtACI 0.947 → **0.737**.
+
+**Honest reframing required (paper lead).** "SPCI self-heals to 0.90 at 0% unbounded"
+is retracted: under deployment-faithful revelation, online conformal recovers most of the
+collapse (0.10 → ~0.80 cross-env; 0.66–0.89 model-swap) with finite intervals, and ACI
+buys near-nominal coverage only by surrendering to unbounded intervals. This is CONSISTENT
+with the rollout-safe Warehouse adaptive-joint result (0.86–0.88): rollout-atomic online
+adaptation under shift recovers to the high-0.80s, not to clean nominal. Lead with that
+one coherent story. The gap also cleanly motivates the methods work already PI-scoped:
+window-by-rollout-count (swebench-qwen rollouts run ~62 prefixes, so a 100-prefix window
+spans ~1.6 rollouts) and unifying the two joint calibrators — choose any new window on
+CAL only, predeclared, never on the target stream.
+
+Also fixed: missing `Optional` import in `economic.py` (latent NameError under
+`get_type_hints`, masked by postponed annotations). Added `scripts/run_overhead.py` —
+median **2.5 ms** per `step()` (p95 4.0 ms) on CPU, `observe()` 14 ms per finished run,
+one-time fit 3.5 s (tables/overhead.csv). C2 like-for-like agent baseline confirmed
+in-place and reproduced (`run_multiresource`: agent joint 0.3625 on the guard's exact
+feasible test rows vs BAGEN summary 0.422 over all samples).
+
+Verified: full suite **63 passed / 2 skipped**, exit 0. Pre-fix tables preserved in
+`tables_prefix_revelation_backup/` for diffing.
+Reproduce: `python -m pytest tests -q`; `python -m budget_guard.run_transfer_env`;
+`python -m budget_guard.run_transfer`; `python -m budget_guard.run_coverage`;
+`python -m budget_guard.run_allruns`; `python scripts/run_overhead.py`.

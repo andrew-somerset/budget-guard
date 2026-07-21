@@ -376,6 +376,62 @@ somewhere that wasn't the main dev `.venv` — worth remembering next time "work
 the whole test plan.
 📁 `guard.py` · `examples/quickstart.py` · `pyproject.toml`
 
+### Loop engineering — the generalized wrapper (development branch)
+
+The original `BudgetGuard` is token-only. The generalized path separates five concerns so a new
+task needs an adapter/configuration, not new statistical code:
+
+1. **Contract and ledger** — `RunStart`, `StepUsage`, `UsageCorrection`, `RunFinish`, and
+  `RunAbort` over named additive `ResourceSpec`s. The ledger rejects missing/unknown resources,
+  duplicate steps, invalid totals, and post-close changes. Events round-trip through JSONL.
+2. **Generic features** — the same spent/budget-left/last/mean/std/trend summaries for every
+  resource, with explicitly declared numeric context/progress keys. Failed or aborted traces
+  never receive invented remaining-resource labels.
+3. **Stateful estimator** — `LoopBudgetGuard` fits frozen prediction models, then updates one
+  rollout-level vector-error window only after a naturally completed successful run. It cannot
+  see its active run's future. Delayed telemetry replaces prior usage instead of double-counting.
+4. **Policy** — estimator output becomes a recommendation (`continue`, `replan`, `reduce_scope`,
+  `ask_human`, `pause`, `abort`). Low shifted gate scores escalate to a human by default rather
+  than automatically destroying useful work. Policy is replaceable without retraining.
+5. **Adapters** — OpenAI-style, LangChain-style, and arbitrary mapping adapters translate
+  telemetry only. Provider prices are supplied by the caller, never hardcoded.
+
+**Five-seed unchanged-core validation (default = 10 completed rollout vectors):**
+
+| Scenario | Frozen joint | Adaptive joint | Trajectory-level joint | Auto false-stop | Failed caught |
+|---|---:|---:|---:|---:|---:|
+| Sokoban → SWE-bench tokens | 0.519 | **0.912** | 0.837 | 0.000 | 0.784 |
+| Opus → Gemini Warehouse | 0.787 | **0.963** | 0.838 | 0.000 | 0.719 |
+| Opus → GPT-5.2 Warehouse | 0.939 | **0.943** | 0.822 | 0.009 | 0.719 |
+| Opus → Qwen Warehouse | 0.887 | **0.949** | 0.847 | 0.031 | 0.713 |
+| Opus → Sonnet Warehouse | 0.973 | **0.957** | 0.800 | 0.009 | 0.713 |
+| Non-agent sequential text (pipeline smoke) | 0.956 | 0.958 | 0.911 | 0.000 | — |
+
+The independent per-resource adaptive baseline reaches nominal by becoming unbounded on nearly
+every three-resource Warehouse run, triggering fail-safe pauses 97–99% of the time. The shared
+joint rank remains finite and operational; this is why joint adaptation is not cosmetic.
+
+**Predeclared order/window stress test:** 10 target permutations × windows {5,10,20,40} × five
+transfer scenarios = 200 replay runs. Window 5 is mathematically too small for finite 90%
+calibration and correctly fails safe. Window 10 is the stable cross-family default: token joint
+coverage 0.937–0.951 across orderings; Warehouse 0.938–0.975; automatic false stops 0–4.7%.
+Windows 20–40 adapt too slowly on token shift (mean 0.899 / 0.874), so no task-specific tuning was
+used to rescue them.
+
+**Closed-loop audit:** at the conservative default, oracle and deployment replay match over five
+seeds (tokens 0.912; Warehouse Gemini 0.963) because no successful run is automatically stopped;
+failed-run catch remains 78% / 72%. A replay bug found during this audit—obeying a stop
+recommendation *after* the terminal step and incorrectly censoring an already observed label—was
+fixed and locked by a regression test.
+
+**Honest remaining gap:** BAGEN is still the only real agent benchmark suite. The local source-
+text case proves the generic software path, not external agent validity. A second independent
+agent benchmark and an anonymized production/pilot log are still required before claiming broad
+real-world impact.
+
+📁 `loop_schema.py` · `loop_features.py` · `loop_guard.py` · `loop_policy.py` ·
+`loop_adapters.py` · `loop_evaluation.py` · `run_loop_{validation,stress,closed_loop}.py`
+
 ---
 
 ## The robustness pass

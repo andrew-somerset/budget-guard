@@ -145,6 +145,22 @@ over-coverage, never silent under-coverage). Curve carries a 5-seed band per env
 **Artifact.** Pip-installable (`pip install -e .`) + a runnable no-data demo; a fresh-env
 install caught and fixed a missing scikit-learn dependency.
 
+**Loop-engineering generalization (development branch).** The wrapper is no longer tied to
+tokens or Warehouse columns: a versioned RunStart/StepUsage/UsageCorrection/RunFinish/
+RunAbort contract, resource ledger, generic features, stateful multi-resource guard,
+separate intervention policy, and framework telemetry adapters now share one live path.
+At the stress-selected 10-completed-run window, five-seed adaptive-joint coverage is 0.912
+on Sokoban→SWE-bench tokens and 0.943–0.963 across four Warehouse model swaps, with
+0–3.1% automatic false stops and 71–78% failed-run catches. An independent sequential-
+source-text corpus reaches 0.958 but remains a **pipeline smoke test, not an agent-domain
+result**. Order/window stress (200 replay runs) and oracle-vs-closed-loop replay are now
+explicit scripts rather than prose-only limitations.
+
+**Claim boundary:** provider/task-neutral for measurable additive resource loops is now a
+software and BAGEN-supported claim. "Works across real agent domains" is not yet supported:
+we still need a second independent coding/browser/workflow-agent dataset and preferably an
+anonymized pilot. Do not promote source files into fake agent evidence.
+
 **Limitation, stated plainly.** Logged evaluation is counterfactual-free; a toy closed-loop
 sim shows the guard's own aborts self-select its calibration stream, so its TRUE coverage
 drifts (0.92→0.83) while its self-measured coverage stays ~nominal (0.91) — off-policy

@@ -31,8 +31,8 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   scikit-learn dependency.
 - **Reproducibility:** Python 3.12 venv + `scripts/fetch_bagen.py` (minimal ~105 MB data
   subset expanded to every model needed by the experiments; BAGEN revision + exact Python
-  dependencies pinned; every headline number re-derived; full suite collected 30 tests
-  (28 pass / 2 existing data-path skips).
+  dependencies pinned; every headline number re-derived; full suite now has **59 passed /
+  2 existing data-path skips** (exit 0), plus Python 3.10/3.12 CI on both demos.
 - **Full breadth + model transfer:** all 19 token-budget model×environment runs now execute;
   SWE-bench model swap confirms frozen 0.38–0.76 vs SPCI 0.91–0.93 at 0% unbounded.
 - **External-budget transfer + adaptive joint method (development):** Opus 4.7 → four
@@ -40,6 +40,17 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   rollout-safe recent-error window updates all three resource margins plus their shared
   empirical-copula rank, raising joint coverage to 0.86–0.88 overall and 0.87–0.90 in
   the late half (five seeds; every rollout-cluster 90% CI includes 0.90; 0% unbounded).
+- **Generic loop-engineering wrapper (development):** task-neutral resource/event schema,
+  validated ledger + JSONL, generic prefix features, stateful `LoopBudgetGuard`, feasibility
+  gate, replaceable intervention policy, delayed-usage correction, artifact checksum/
+  metadata, and dependency-free OpenAI/LangChain/mapping telemetry adapters. The same
+  live core now replays token, Warehouse, and independent sequential-text traces.
+- **Generic robustness evidence:** five-seed default-10 joint coverage = 0.912 on
+  Sokoban→SWE-bench tokens and 0.943–0.963 across four Warehouse model swaps, with
+  0–3.1% automatic false stops and 71–78% failed-run catches. A 200-run order/window
+  stress grid selects 10 completed rollouts as the cross-family default; 5 fails safe,
+  while 20–40 adapt too slowly on token shift. Five-seed closed-loop and oracle replay
+  match under the conservative default because no successful run is auto-stopped.
 
 ## What's blocked (documented, not skipped)
 - **PI-blocked** — which censored-conformal guarantee to claim (selective-on-kept vs
@@ -47,18 +58,24 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   in `notes/robustness_progress.md`); whether adaptive joint calibration should be joined
   to the feasibility gate for censored/doomed Warehouse runs; and whether the by-depth
   cut belongs on the warehouse tables.
+- **Evidence-blocked** — no second independent agent benchmark and no anonymized live/
+  production pilot logs are available here. The source-text path is explicitly a pipeline
+  smoke test, not external agent-domain validation.
 
 ## Next steps (prioritized)
 1. **PI meeting** — sign off on (a) the censored-conformal guarantee framing + the
   gated-IPCW next increment, (b) whether to connect adaptive joint calibration to the
   feasibility gate, and (c) the target venue. These gate the methods framing.
-2. **Write-up** — 4-pager led by the transfer figure; add the internal-vs-external contrast
+2. **Independent validation / pilot** — collect one coding or browser-agent dataset through
+  the generic JSONL/adapters, then run the unchanged validation/closed-loop harness. This
+  is a data/resource task; do not relabel the source-text smoke test as agent evidence.
+3. **Write-up** — 4-pager led by the transfer figure; add the internal-vs-external contrast
   (token shift recovers to 0.91–0.93; Warehouse joint shift to 0.86–0.88 overall);
   methods section around censored rungs 1–3 + rollout-safe adaptive joint calibration;
   related-work table + unresolved citations.
-3. **Artifact release** — replace the placeholder LICENSE holder, prepare an anonymized
+4. **Artifact release** — replace the placeholder LICENSE holder, prepare an anonymized
   submission repository, and archive the exact release/data revision for a permanent DOI.
-4. **Submit** — NeurIPS 2026 workshop (~Oct; watch the slate confirmed ~Sep 29); consider
+5. **Submit** — NeurIPS 2026 workshop (~Oct; watch the slate confirmed ~Sep 29); consider
    COPA / AISTATS 2027 for the methods angle. Submit fast — the BAGEN team targets
    NeurIPS 2026 main with public code (scoop risk).
 

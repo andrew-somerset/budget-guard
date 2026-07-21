@@ -602,3 +602,88 @@ conformal/audit suite: **12 passed**. Full suite collected **30 tests** and exit
 
 Reproduce: `.venv\Scripts\python.exe -m pytest tests\test_multiresource_adaptive.py -q`;
 `.venv\Scripts\python.exe -m budget_guard.run_transfer_warehouse`.
+
+### 2026-07-20 — Generic loop-engineering wrapper: implementation + bounded evidence
+
+Status: **Implemented and locally verified on `development`; real-world pilot remains
+evidence-blocked.** Generalized the statistical work into a task-neutral live control layer
+without removing the original token API.
+
+**Core shipped in this checkpoint:**
+- `loop_schema.py`: versioned RunStart / StepUsage / UsageCorrection / RunFinish /
+  RunAbort contract; named additive ResourceSpecs; strict ledger; JSONL round trip.
+  Delayed authoritative usage replaces a prior step value rather than double-counting it.
+- `loop_features.py`: one prefix-only feature path for every resource (spent, budget left,
+  fraction, last/mean/std/min/max/last3/trend) plus explicitly declared numeric context/
+  progress. Failed/aborted traces keep NaN interval targets—no invented counterfactual.
+- `loop_guard.py`: stateful multi-resource `LoopBudgetGuard`, rollout-safe joint window,
+  calibrated feasibility gate, online gate-threshold adaptation from successful finished
+  runs only, offline/live feature parity, frozen/independent/joint modes, artifact save/load
+  with version/dependency/resource metadata + SHA-256 manifest.
+- `loop_policy.py`: separate replaceable recommendation layer (`continue`, `replan`,
+  `reduce_scope`, `ask_human`, `pause`, `abort`). Low shifted gate scores ask a human by
+  default rather than automatically discarding work. Tiny-n open intervals fail safe to
+  `pause`.
+- `loop_adapters.py`: dependency-free OpenAI-style, LangChain-style, and arbitrary mapping
+  telemetry adapters; prices caller-supplied, never hardcoded.
+- `loop_datasets.py`: old token, Warehouse, and independent sequential-text data all map to
+  the exact same RunTrace contract. `loop_evaluation.py` replays the live API in oracle or
+  realistic stop-obeying mode.
+- `run_loop_validation.py`, `run_loop_stress.py`, `run_loop_closed_loop.py`, and
+  `scripts/run_loop_artifact.py`; all long jobs checkpoint/resume explicitly.
+
+**Five-seed unchanged-core validation at stress-selected window=10:**
+
+| scenario | frozen joint | adaptive joint | trajectory joint | auto false-stop | failed caught |
+|---|---:|---:|---:|---:|---:|
+| Sokoban→SWE-bench tokens | 0.519 | **0.912** | 0.837 | 0.000 | 0.784 |
+| Opus→Gemini Warehouse | 0.787 | **0.963** | 0.838 | 0.000 | 0.719 |
+| Opus→GPT-5.2 Warehouse | 0.939 | **0.943** | 0.822 | 0.009 | 0.719 |
+| Opus→Qwen Warehouse | 0.887 | **0.949** | 0.847 | 0.031 | 0.713 |
+| Opus→Sonnet Warehouse | 0.973 | 0.957 | 0.800 | 0.009 | 0.713 |
+| non-agent source-text smoke | 0.956 | 0.958 | 0.911 | 0.000 | — |
+
+Adaptive independent equals joint for one resource. With 3 resources and only 10 completed
+run vectors it cannot support the Bonferroni per-margin finite-sample level, so it honestly
+returns open intervals and fail-safe pauses on ~97–99% of Warehouse feasible runs. The
+shared rank remains finite/useful—joint adaptation is not cosmetic. Sonnet's frozen result
+is already over target and adaptive is slightly lower; report it, do not cherry-pick.
+
+**Order/window stress:** complete 200-run grid = windows {5,10,20,40} × 10 target-order
+permutations × 5 transfer scenarios. Window 5 cannot support finite 90% calibration and
+correctly pauses. Window 10 is the cross-family default: token coverage 0.937–0.951 over
+orders; Warehouse 0.938–0.975; false stops 0–4.7%. Windows 20/40 adapt too slowly on the
+token shift (means 0.899 / 0.874). This default was selected from the predeclared grid,
+not tuned separately by task.
+
+**Five-seed closed loop:** oracle and stop-obeying deployment match at the conservative
+default (tokens 0.912; Warehouse Gemini 0.963), because no successful target run is
+automatically stopped; failed-run catch stays 78% / 72%. This is encouraging but not a
+general proof against feedback bias—more aggressive organization policies can reintroduce
+it and must be audited separately.
+
+**Bugs found by real execution and fixed:**
+1. Independently fitted quantile models crossed on Warehouse, producing invalid ranges.
+   Predictions are now ordered consistently in calibration/live/update paths, and negative
+   conformal shrinkage cannot re-cross them; regression tested.
+2. Frozen source gate threshold (~0.99998) caused 36% false aborts under model shift. Gate
+   scores now self-calibrate from successful finished target runs; low scores ask a human
+   rather than auto-abort by default. Generic Warehouse false stops fell to 0–3.1%.
+3. Closed-loop replay obeyed a stop recommendation after the terminal step, incorrectly
+   censoring a run whose outcome was already observed. Terminal decisions can no longer
+   erase completion labels; regression tested.
+4. Direct example invocation could not import the source package unless already installed.
+   Both documented examples now work from a checkout and after installation.
+
+**Verification:** generic focused suite **35 passed**; full repo **59 passed / 2 existing
+data-path skips**, exit 0; no diagnostics in package/tests/examples/scripts. Both no-data
+demos run. CI added for Python 3.10 and 3.12. Output tables are gitignored but regenerate
+via `python scripts/run_loop_artifact.py --full`, which writes hashes and environment info.
+
+**Hard claim boundary / remaining blocker:** all agent-domain evidence is still BAGEN. The
+source-text corpus is a software-pipeline smoke test, not an agent benchmark. No independent
+coding/browser/workflow-agent logs or anonymized live pilot exist in this workspace, so the
+"real-world pilot" item cannot honestly be completed here. Next human/resource action:
+collect one independent agent JSONL stream via the new adapters, then run the unchanged
+validation/closed-loop harness. Also still PI-blocked: censored guarantee framing and whether
+to combine the generic adaptive guard with gated-IPCW.

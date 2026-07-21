@@ -773,3 +773,25 @@ Verified: full suite **63 passed / 2 skipped**, exit 0. Pre-fix tables preserved
 Reproduce: `python -m pytest tests -q`; `python -m budget_guard.run_transfer_env`;
 `python -m budget_guard.run_transfer`; `python -m budget_guard.run_coverage`;
 `python -m budget_guard.run_allruns`; `python scripts/run_overhead.py`.
+
+### 2026-07-21 (later) — DtACI added to both transfer experiments (negative result, kept)
+
+Status: **Implemented + run** (first change through the new branch+PR workflow).
+Parameter-free DtACI now runs alongside frozen/ACI/SPCI in `run_transfer.py` and
+`run_transfer_env.py`, under the same rollout-safe revelation.
+
+**Result — DtACI does not close the transfer gap either:**
+- Model swap (swebench): DtACI 0.682/0.633/0.841/0.577 at 10–27% unbounded — below
+  SPCI (0.66–0.89 at 0% unbounded) on 3 of 4 targets AND less operational.
+- Cross-env: sokoban→swebench DtACI 0.905 [0.838, 0.962] but at **88% unbounded** —
+  the ACI "recovers by surrendering" pathology, not a usable monitor; searchr1 0.839
+  at 70% unbounded.
+
+**Reading:** under deployment-faithful (rollout-atomic) label revelation, NO current
+online method reaches nominal coverage with finite intervals on the hard transfers.
+SPCI remains the finite-interval frontier (0.66–0.89). This is the cleanest motivation
+yet for the PI-scoped methods increment: windows sized in completed-rollout counts
+(not prefix counts) / a unified joint calibrator, with any new window predeclared on
+CAL only. Kill the "one afternoon of DtACI fixes it" objection with this table.
+
+Reproduce: `python -m budget_guard.run_transfer`; `python -m budget_guard.run_transfer_env`.

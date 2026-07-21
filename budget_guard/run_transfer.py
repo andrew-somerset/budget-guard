@@ -6,8 +6,8 @@ logged claude-opus-4.7 SWE-bench runs. The deployed agent is then a *different*
 model, so no labels from the new distribution exist at time zero — but every
 completed run reveals its label, and the online methods consume them.
 
-Frozen split-CQR (never updates) vs ACI-CQR and SPCI (adapt online) on each
-target model's rollout stream.
+Frozen split-CQR (never updates) vs ACI-CQR, SPCI, and parameter-free DtACI
+(adapt online, rollout-safe label revelation) on each target model's stream.
 
 Usage: python -m budget_guard.run_transfer
 Writes figures/transfer_swebench.png and tables/transfer_swebench.csv.
@@ -20,7 +20,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, spci, tune_gamma
+from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, spci, tune_gamma
 from .extract import flatten_to_samples, load_rollouts, samples_to_dataframe
 from .features import build_xy
 from .metrics import frac_unbounded, marginal_coverage, normalized_width
@@ -30,7 +30,7 @@ _DATA = os.path.join(os.path.dirname(__file__), "..", "data", "bagen_hf", "estim
 SOURCE = "swebench-origin-claude-opus4.7_claude-opus-4.7-low-thinking-512-main"
 MAX_CTX = 7060
 
-BLUE, AQUA, YELLOW, VIOLET, GRAY = "#2a78d6", "#1baf7a", "#eda100", "#4a3aa7", "#8B93A1"
+BLUE, AQUA, YELLOW, VIOLET, GREEN, GRAY = "#2a78d6", "#1baf7a", "#eda100", "#4a3aa7", "#008300", "#8B93A1"
 
 
 def _load(run_dir: str) -> pd.DataFrame:
@@ -66,6 +66,7 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
             "split-CQR (frozen)": cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2],
             "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2],
             "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
+            "DtACI": dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
         }.items():
             rows.append(
                 {
@@ -89,11 +90,11 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    methods = ["split-CQR (frozen)", "ACI-CQR", "SPCI"]
-    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "SPCI": VIOLET}
+    methods = ["split-CQR (frozen)", "ACI-CQR", "SPCI", "DtACI"]
+    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "SPCI": VIOLET, "DtACI": GREEN}
     models = list(dict.fromkeys(table["target_model"]))
     xs = np.arange(len(models))
-    width = 0.24
+    width = 0.20
 
     fig, ax = plt.subplots(figsize=(9.5, 4.4), constrained_layout=True)
     for i, method in enumerate(methods):
@@ -116,7 +117,7 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
                  "deployed on other models")
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
-    ax.legend(frameon=False, fontsize=9, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 1.06))
+    ax.legend(frameon=False, fontsize=9, ncol=4, loc="lower center", bbox_to_anchor=(0.5, 1.06))
     fig.savefig("figures/transfer_swebench.png", dpi=200)
 
     print(table.to_string(index=False))

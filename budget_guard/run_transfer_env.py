@@ -16,13 +16,13 @@ import os
 import numpy as np
 import pandas as pd
 
-from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, spci, tune_gamma
+from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, spci, tune_gamma
 from .data import ENVS, load_env
 from .features import build_xy
 from .metrics import frac_unbounded, marginal_coverage, normalized_width, rollout_bootstrap_ci
 from .split import group_split
 
-AQUA, YELLOW, VIOLET = "#1baf7a", "#eda100", "#4a3aa7"
+AQUA, YELLOW, VIOLET, GREEN = "#1baf7a", "#eda100", "#4a3aa7", "#008300"
 SOURCE = "sokoban"
 
 
@@ -44,6 +44,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
                 "split-CQR (frozen)": cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2],
                 "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2],
                 "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
+                "DtACI": dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
             }.items():
                 ci = rollout_bootstrap_ci(yte, lo, hi, gte, seed=seed)
                 rows.append({
@@ -68,10 +69,10 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    method_order = ["split-CQR (frozen)", "ACI-CQR", "SPCI"]
-    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "SPCI": VIOLET}
+    method_order = ["split-CQR (frozen)", "ACI-CQR", "SPCI", "DtACI"]
+    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "SPCI": VIOLET, "DtACI": GREEN}
     xs = np.arange(len(targets))
-    width = 0.24
+    width = 0.20
 
     fig, ax = plt.subplots(figsize=(8, 4.6), constrained_layout=True)
     for i, method in enumerate(method_order):

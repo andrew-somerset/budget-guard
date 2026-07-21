@@ -42,8 +42,8 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
             Xte, yte, gte = tgt_data[env]
             for name, (lo, hi) in {
                 "split-CQR (frozen)": cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2],
-                "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma)[:2],
-                "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha)[:2],
+                "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2],
+                "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
             }.items():
                 ci = rollout_bootstrap_ci(yte, lo, hi, gte, seed=seed)
                 rows.append({

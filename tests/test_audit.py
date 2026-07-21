@@ -50,11 +50,12 @@ def test_injected_drift_frozen_degrades_online_recovers():
     Xc, yc, gc = _grouped(n_rollouts=300, seed=1)
     m = group_split(pd.DataFrame({"rollout_index": gc}), fracs=(0.6, 0.4, 0.0), seed=1)
     tr, ca = m["train"], m["cal"]
-    Xs, ys, _ = _grouped(n_rollouts=400, seed=2, shift=6.0, scale=1.6)  # deployment drift
+    Xs, ys, gs = _grouped(n_rollouts=400, seed=2, shift=6.0, scale=1.6)  # deployment drift
 
     lo_f, hi_f, _ = cqr_split(Xc[tr], yc[tr], Xc[ca], yc[ca], Xs, alpha=0.1)
     cov_frozen = marginal_coverage(ys, lo_f, hi_f)
-    lo_o, hi_o, _ = spci(Xc[tr], yc[tr], Xc[ca], yc[ca], Xs, ys, alpha=0.1)
+    # rollout-safe revelation: online must recover using only completed-rollout labels
+    lo_o, hi_o, _ = spci(Xc[tr], yc[tr], Xc[ca], yc[ca], Xs, ys, alpha=0.1, groups=gs)
     cov_online = marginal_coverage(ys, lo_o, hi_o)
 
     assert cov_frozen < 0.75, f"frozen should degrade under shift, got {cov_frozen:.3f}"

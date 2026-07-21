@@ -45,6 +45,55 @@ def test_online_methods_recover_under_shift(online):
     assert cov >= 0.80, f"online coverage under shift {cov}"
 
 
+class _ConstModel:
+    """Deterministic stand-in for a fitted quantile model."""
+
+    def __init__(self, value: float):
+        self._value = value
+
+    def predict(self, X):
+        return np.full(len(X), self._value, dtype=float)
+
+
+@pytest.mark.parametrize("method", ["aci", "spci", "dtaci"])
+def test_rollout_safe_revelation_freezes_within_rollout(method, monkeypatch):
+    """With ``groups``, predictions inside a rollout are invariant to that rollout's
+    own labels — remaining-to-completion labels do not exist until the rollout ends.
+    Per-step revelation (groups=None) is NOT invariant, which is exactly the leak
+    the rollout-safe schedule closes; asserting both proves the test can see it."""
+    import budget_guard.conformal as conformal_mod
+
+    monkeypatch.setattr(
+        conformal_mod, "_fit_cqr", lambda X, y, alpha: (_ConstModel(40.0), _ConstModel(60.0))
+    )
+    fn = {
+        "aci": lambda *a, **k: conformal_mod.aci_cqr(*a, gamma=0.05, **k),
+        "spci": conformal_mod.spci,
+        "dtaci": conformal_mod.dtaci,
+    }[method]
+
+    X_cal = pd.DataFrame({"a": np.zeros(10)})
+    y_cal = np.linspace(30.0, 70.0, 10)
+    n_test = 12
+    X_test = pd.DataFrame({"a": np.zeros(n_test)})
+    groups = np.repeat([0, 1], 6)
+    y_plain = np.full(n_test, 50.0)  # every label comfortably covered
+    y_leaky = y_plain.copy()
+    y_leaky[1:5] = 1e6  # rollout 0's later labels explode
+
+    lo_a, hi_a, _ = fn(X_cal, y_cal, X_cal, y_cal, X_test, y_plain, alpha=0.1, groups=groups)
+    lo_b, hi_b, _ = fn(X_cal, y_cal, X_cal, y_cal, X_test, y_leaky, alpha=0.1, groups=groups)
+    # rollout 0 (rows 0-5): its own labels are unobservable mid-rollout -> identical
+    assert np.array_equal(lo_a[:6], lo_b[:6]) and np.array_equal(hi_a[:6], hi_b[:6])
+    # rollout 1 (rows 6-11): rollout 0 finished, labels legitimately revealed -> reacts
+    assert not np.array_equal(hi_a[6:], hi_b[6:])
+
+    # positive control: per-step revelation leaks same-rollout labels into rows 2-5
+    _, hi_c, _ = fn(X_cal, y_cal, X_cal, y_cal, X_test, y_plain, alpha=0.1)
+    _, hi_d, _ = fn(X_cal, y_cal, X_cal, y_cal, X_test, y_leaky, alpha=0.1)
+    assert not np.array_equal(hi_c[2:6], hi_d[2:6])
+
+
 def test_group_split_partitions_by_rollout():
     df = pd.DataFrame({"rollout_index": np.repeat(np.arange(40), 5)})
     masks = group_split(df, seed=1)

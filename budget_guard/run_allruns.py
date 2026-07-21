@@ -77,15 +77,16 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
         )
         if df.empty or df["rollout_index"].nunique() < 12:
             continue
-        X, y, _ = build_xy(df)
+        X, y, groups = build_xy(df)
         masks = group_split(df, seed=seed)
         tr, ca, te = masks["train"], masks["cal"], masks["test"]
         if te.sum() < 10:
             continue
+        gte = groups[te]  # rollout-safe revelation for the online methods
         covs = {
             "split-CQR": marginal_coverage(y[te], *cqr_split(X[tr], y[tr], X[ca], y[ca], X[te], alpha=alpha)[:2]),
-            "SPCI": marginal_coverage(y[te], *spci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha)[:2]),
-            "DtACI": marginal_coverage(y[te], *dtaci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha)[:2]),
+            "SPCI": marginal_coverage(y[te], *spci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha, groups=gte)[:2]),
+            "DtACI": marginal_coverage(y[te], *dtaci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha, groups=gte)[:2]),
         }
         rows.append(
             {

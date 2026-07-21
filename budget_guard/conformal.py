@@ -7,7 +7,13 @@ Online (Week 3, C1): ``aci_cqr`` (Gibbs & Candès 2021) and ``spci`` (windowed
 variant of Xu & Xie 2023) — track drift along the test stream by adapting the
 miscoverage level / score window as true labels arrive. The stream order is the
 natural trajectory order (rollout by rollout, turn by turn), which mimics
-deployment: each finished turn reveals its label.
+deployment. Label availability: a prefix's label y (remaining-to-completion) is
+only observable when its ROLLOUT finishes, so the online methods take a
+``groups`` array and reveal a rollout's labels atomically at its boundary —
+within a rollout the update state is frozen (same discipline as ``guard.py``'s
+observe() and ``multiresource.adaptive_joint_qhats``). ``groups=None`` reveals
+each label immediately after prediction; use it only when labels genuinely
+arrive per step, never for remaining-budget evaluation.
 
 All intervals are clipped below at 0 (remaining tokens are non-negative).
 """
@@ -97,22 +103,32 @@ def cqr_split(X_train, y_train, X_cal, y_cal, X_test, alpha=DEFAULT_ALPHA):
 def aci_cqr(
     X_train, y_train, X_cal, y_cal, X_test, y_test,
     alpha=DEFAULT_ALPHA, gamma: float = 0.01,
+    groups=None,
 ):
     """Adaptive Conformal Inference on top of CQR.
 
-    Streams over the test rows in order. After each prediction the true label is
-    revealed (a finished turn's cost is observable), and the working miscoverage
-    level moves by ``gamma`` toward the target: alpha_t+1 = alpha_t + gamma*(alpha - err_t).
+    Streams over the test rows in order; the working miscoverage level moves by
+    ``gamma`` toward the target on each revealed error: alpha_t+1 = alpha_t +
+    gamma*(alpha - err_t). With ``groups`` (rollout ids aligned to the test rows),
+    a rollout's errors are buffered and applied only at the next rollout boundary
+    — the level is frozen within a rollout, because remaining-to-completion labels
+    do not exist until the rollout ends. ``groups=None`` = per-step revelation.
     """
     mlo, mhi = _fit_cqr(X_train, y_train, alpha)
     cal_scores = np.sort(_cqr_scores(mlo.predict(X_cal), mhi.predict(X_cal), y_cal))
     qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
+    groups = None if groups is None else np.asarray(groups)
 
     alpha_t = alpha
     lo = np.empty(len(y_test))
     hi = np.empty(len(y_test))
     alphas = np.empty(len(y_test))
+    pending: list[float] = []
     for t in range(len(y_test)):
+        if groups is not None and t > 0 and groups[t] != groups[t - 1]:
+            for err in pending:  # previous rollout finished: its labels are now real
+                alpha_t = alpha_t + gamma * (alpha - err)
+            pending.clear()
         if alpha_t <= 0:
             qhat = float("inf")  # the level demands an unbounded interval
         else:
@@ -121,7 +137,10 @@ def aci_cqr(
         hi[t] = qhi_test[t] + qhat
         err = float(not (lo[t] <= y_test[t] <= hi[t]))
         alphas[t] = alpha_t
-        alpha_t = alpha_t + gamma * (alpha - err)
+        if groups is None:
+            alpha_t = alpha_t + gamma * (alpha - err)
+        else:
+            pending.append(err)
     frac_inf = float(np.mean(~np.isfinite(hi)))
     return _clip_nonneg(lo), hi, {"gamma": gamma, "alpha_path": alphas, "frac_inf": frac_inf}
 
@@ -129,14 +148,18 @@ def aci_cqr(
 def spci(
     X_train, y_train, X_cal, y_cal, X_test, y_test,
     alpha=DEFAULT_ALPHA, window: int = 100,
+    groups=None,
 ):
     """Windowed sequential conformal (SPCI-style).
 
     Keeps the most recent ``window`` conformity scores — warm-started from CAL —
     and reads the interval half-width off that window's empirical quantile, so the
     score distribution itself tracks drift (unlike ACI, which reweights a frozen
-    CAL distribution). Simplification vs. full SPCI: empirical window quantiles in
-    place of a quantile regression on the residual series.
+    CAL distribution). With ``groups`` (rollout ids aligned to the test rows), a
+    rollout's scores enter the window atomically at its boundary — no prefix sees
+    a same-rollout label, which is unobservable until the rollout ends.
+    Simplification vs. full SPCI: empirical window quantiles in place of a
+    quantile regression on the residual series.
     """
     mlo, mhi = _fit_cqr(X_train, y_train, alpha)
     recent = deque(
@@ -144,14 +167,23 @@ def spci(
         maxlen=window,
     )
     qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
+    groups = None if groups is None else np.asarray(groups)
 
     lo = np.empty(len(y_test))
     hi = np.empty(len(y_test))
+    pending: list[float] = []
     for t in range(len(y_test)):
+        if groups is not None and t > 0 and groups[t] != groups[t - 1]:
+            recent.extend(pending)  # previous rollout finished: labels became real
+            pending.clear()
         qhat = _finite_sample_quantile(np.asarray(recent), alpha)
         lo[t] = qlo_test[t] - qhat
         hi[t] = qhi_test[t] + qhat
-        recent.append(float(_cqr_scores(qlo_test[t : t + 1], qhi_test[t : t + 1], y_test[t : t + 1])[0]))
+        score_t = float(_cqr_scores(qlo_test[t : t + 1], qhi_test[t : t + 1], y_test[t : t + 1])[0])
+        if groups is None:
+            recent.append(score_t)
+        else:
+            pending.append(score_t)
     return _clip_nonneg(lo), hi, {"window": window}
 
 
@@ -206,6 +238,7 @@ def dtaci(
     gammas: tuple[float, ...] = (0.005, 0.01, 0.02, 0.05, 0.1, 0.2),
     eta: float = 2.0,
     sigma: float = 0.01,
+    groups=None,
 ):
     """DtACI (Gibbs & Candès 2022, simplified constants): expert aggregation over
     ACI copies with different gammas — no gamma tuning step at all.
@@ -213,26 +246,23 @@ def dtaci(
     Each expert k tracks its own alpha_t^k; the working level is the weight-averaged
     alpha_t. After each label, beta_t (the largest level that would still have
     covered) scores every expert via pinball loss; weights update exponentially with
-    a small uniform mixing sigma to keep experts alive.
+    a small uniform mixing sigma to keep experts alive. With ``groups`` (rollout ids
+    aligned to the test rows), a rollout's scores are buffered and absorbed only at
+    the next rollout boundary — expert weights and levels are frozen within a
+    rollout, matching when remaining-to-completion labels actually exist.
     """
     mlo, mhi = _fit_cqr(X_train, y_train, alpha)
     cal_scores = np.sort(_cqr_scores(mlo.predict(X_cal), mhi.predict(X_cal), y_cal))
     qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
     n_cal = len(cal_scores)
+    groups = None if groups is None else np.asarray(groups)
 
     K = len(gammas)
     expert_alpha = np.full(K, alpha)
     weights = np.full(K, 1.0 / K)
 
-    lo = np.empty(len(y_test))
-    hi = np.empty(len(y_test))
-    for t in range(len(y_test)):
-        alpha_t = float(np.clip(np.dot(weights, expert_alpha), 0.0, 0.999))
-        qhat = float("inf") if alpha_t <= 0 else _finite_sample_quantile(cal_scores, alpha_t)
-        lo[t] = qlo_test[t] - qhat if np.isfinite(qhat) else 0.0
-        hi[t] = qhi_test[t] + qhat
-
-        score_t = float(_cqr_scores(qlo_test[t : t + 1], qhi_test[t : t + 1], y_test[t : t + 1])[0])
+    def _absorb(score_t: float) -> None:
+        nonlocal weights, expert_alpha
         # beta_t: largest alpha whose (finite-sample) quantile still covers score_t
         beta_t = float(np.sum(cal_scores >= score_t) + 1) / (n_cal + 1)
         # pinball loss of each expert's level against beta_t
@@ -243,6 +273,25 @@ def dtaci(
         # each expert runs its own ACI update
         expert_err = (expert_alpha > beta_t).astype(float)
         expert_alpha = expert_alpha + np.asarray(gammas) * (alpha - expert_err)
+
+    lo = np.empty(len(y_test))
+    hi = np.empty(len(y_test))
+    pending: list[float] = []
+    for t in range(len(y_test)):
+        if groups is not None and t > 0 and groups[t] != groups[t - 1]:
+            for score in pending:  # previous rollout finished: labels became real
+                _absorb(score)
+            pending.clear()
+        alpha_t = float(np.clip(np.dot(weights, expert_alpha), 0.0, 0.999))
+        qhat = float("inf") if alpha_t <= 0 else _finite_sample_quantile(cal_scores, alpha_t)
+        lo[t] = qlo_test[t] - qhat if np.isfinite(qhat) else 0.0
+        hi[t] = qhi_test[t] + qhat
+
+        score_t = float(_cqr_scores(qlo_test[t : t + 1], qhi_test[t : t + 1], y_test[t : t + 1])[0])
+        if groups is None:
+            _absorb(score_t)
+        else:
+            pending.append(score_t)
 
     frac_inf = float(np.mean(~np.isfinite(hi)))
     return _clip_nonneg(lo), hi, {"frac_inf": frac_inf, "final_weights": weights}
@@ -257,15 +306,17 @@ def tune_gamma(
     """Pick gamma on CAL only: split CAL's rollouts in half, calibrate on one half,
     stream ACI over the other, keep the gamma whose coverage lands closest to 1-alpha."""
     rng = np.random.default_rng(seed)
+    cal_groups = np.asarray(cal_groups)
     rollouts = rng.permutation(np.unique(cal_groups))
     half = set(rollouts[: len(rollouts) // 2])
     in_a = np.isin(cal_groups, list(half))
     Xa, ya = X_cal[in_a], y_cal[in_a]
     Xb, yb = X_cal[~in_a], y_cal[~in_a]
+    gb = cal_groups[~in_a]  # tune under the same rollout-safe revelation as deployment
 
     best_gamma, best_dist = gammas[0], float("inf")
     for gamma in gammas:
-        lo, hi, _ = aci_cqr(X_train, y_train, Xa, ya, Xb, yb, alpha=alpha, gamma=gamma)
+        lo, hi, _ = aci_cqr(X_train, y_train, Xa, ya, Xb, yb, alpha=alpha, gamma=gamma, groups=gb)
         coverage = float(np.mean((lo <= yb) & (yb <= hi)))
         dist = abs(coverage - (1 - alpha))
         if dist < best_dist:

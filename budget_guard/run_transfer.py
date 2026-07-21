@@ -61,11 +61,11 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     rows = []
     for model, run_dir in target_runs().items():
         tgt = _load(run_dir)
-        Xte, yte, _ = build_xy(tgt)
+        Xte, yte, gte = build_xy(tgt)
         for name, (lo, hi) in {
             "split-CQR (frozen)": cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2],
-            "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma)[:2],
-            "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha)[:2],
+            "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2],
+            "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
         }.items():
             rows.append(
                 {

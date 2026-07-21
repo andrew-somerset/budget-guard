@@ -3,7 +3,8 @@
 Within-run evaluation (split by rollout, same model claude-opus-4.7 everywhere):
 split-absres, split-CQR, ACI-CQR (gamma tuned on CAL only), SPCI, plus the BAGEN
 agent-self-report baseline from the official records. Online methods stream over
-the test rows in trajectory order.
+the test rows in trajectory order with rollout-safe label revelation (a prefix's
+remaining-to-completion label enters the update state only after its rollout ends).
 
 Usage: python -m budget_guard.run_coverage
 Writes figures/coverage_main.png and tables/coverage.csv.
@@ -68,9 +69,10 @@ def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]
     intervals["constant-quantile"] = constant_quantile(yca, len(yte), alpha=alpha)[:2]
     intervals["split-absres"] = split_conformal_absres(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2]
     intervals["split-CQR"] = cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2]
-    intervals["ACI-CQR"] = aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma)[:2]
-    intervals["SPCI"] = spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha)[:2]
-    intervals["DtACI"] = dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha)[:2]
+    gte = groups[te]  # rollout-safe revelation: labels enter only at rollout boundaries
+    intervals["ACI-CQR"] = aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2]
+    intervals["SPCI"] = spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2]
+    intervals["DtACI"] = dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2]
 
     if est is not None:
         # (a) agent's own midpoint as the point predictor — zero training at all

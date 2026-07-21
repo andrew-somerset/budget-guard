@@ -459,7 +459,7 @@ real-world impact.
 
 This is the part built across 9 commits without close supervision, so it's worth understanding as
 a *process*, not just a diff. It was driven by a literal master prompt
-(`notes/robustness_loop_prompt.md`), resubmitted verbatim every iteration, that reads its own
+(`notes/robustness_loop_prompt.md`, retired 2026-07-21 — in git history), resubmitted verbatim every iteration, that reads its own
 progress log (`notes/robustness_progress.md`) to self-resume.
 
 **Ground rules it operated under:**
@@ -511,7 +511,7 @@ coverage; the closed-loop guard's *true* coverage on the full population drifts 
 the guard's *self-measured* coverage (on its own self-selected, survivorship-biased stream) stays
 at **0.91** — it is blind to the bias it's inducing. Illustrative and synthetic, not a measurement
 of the real system, but the mechanism is real and stated as an open limitation, not smoothed over.
-📁 `notes/robustness_loop_prompt.md` · `notes/robustness_progress.md` · `scripts/run_closed_loop.py`
+📁 `notes/robustness_progress.md` · `scripts/run_closed_loop.py` (loop prompt retired to git history)
 
 ---
 

@@ -5,7 +5,9 @@ wrapper that outputs calibrated prediction intervals on an agent's *remaining bu
 (tokens / $ / time) via online conformal prediction. Built on the logged rollouts from
 **BAGEN** (arXiv:2606.00198).
 
-**CPU-only Python** — no `verl`, no `vllm`, no GPU. The full plan is in [`docs/`](docs/).
+**CPU-only Python** — no `verl`, no `vllm`, no GPU. Architecture + current status:
+[`docs/architecture_decision_map.md`](docs/architecture_decision_map.md) and
+[`notes/current_state.md`](notes/current_state.md).
 
 ## Setup
 
@@ -33,7 +35,6 @@ python budget_guard/extract.py /path/to/dialogues.json
 
 It prints the `(x_t, y_t)` table and runs invariants. Field definitions:
 [`budget_guard/data_dictionary.md`](budget_guard/data_dictionary.md).
-Full Week-1 steps: [`docs/bagen_week1_walkthrough.md`](docs/bagen_week1_walkthrough.md).
 
 ## Reproduce the transfer experiments
 
@@ -171,9 +172,11 @@ budget_guard/   # the offline conformal infrastructure (the critical path)
   loop_policy.py      # intervention recommendations (separate from estimator)
   loop_adapters.py    # framework telemetry translation only
   data_dictionary.md
-notes/          # weekly notes + the reproduced-number log
-docs/           # the project plan + walkthrough (synced across devices)
+notes/          # research_log (weeks 1-6) + robustness_progress (the reproduced-number log)
+docs/           # architecture & decision map
+paper/          # write-up material: related-work table + verified references
 ```
 
 ## Sync model
-Code syncs via Git; data + figures do not. See [`docs/bagen_week1_walkthrough.md`](docs/bagen_week1_walkthrough.md) §7.
+Code syncs via Git; data + generated figures/tables are gitignored by design —
+regenerate via `scripts/fetch_bagen.py` and the `run_*` scripts.

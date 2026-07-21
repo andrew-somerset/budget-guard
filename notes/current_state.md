@@ -96,6 +96,6 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
 ## Where things live
 - Per-item robustness log + reproduce commands: `notes/robustness_progress.md`
 - Strategy + "Robustness pass — results": `notes/positioning.md`
-- Weekly research log: `notes/week{1..6}.md`
+- Weekly research log (weeks 1–6, consolidated): `notes/research_log.md`
 - Wrapper + demo: `budget_guard/guard.py`, `examples/quickstart.py`, `README.md`
 - Data fetch: `scripts/fetch_bagen.py`

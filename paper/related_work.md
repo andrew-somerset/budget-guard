@@ -17,6 +17,7 @@ IDs once at camera-ready.
 | Budget-aware agents (our substrate) | ✔ BAGEN: "Are LLM Agents Budget-Aware?" (arXiv:2606.00198, 2026) | Benchmark + logged rollouts; SFT+RL self-estimation of remaining budget; early-stop saves 28–64% on failed trajectories | Self-estimates hit truth ~35–48%; no calibration guarantee, requires fine-tuning; no drift story |
 | Conformal foundations | Vovk et al. 2005 (book); Papadopoulos et al. 2002; Lei et al. 2018 (JASA); CQR: Romano et al. 2019 (NeurIPS) | Distribution-free finite-sample interval validity under exchangeability | Exchangeability fails here twice: within-trajectory depth drift and cross-deployment shift |
 | Online conformal under shift | ACI: Gibbs & Candès 2021 (NeurIPS); DtACI: Gibbs & Candès 2024 (JMLR); AgACI: Zaffran et al. 2022 (ICML); SPCI: Xu & Xie 2023 (ICML); Barber et al. 2023 (Ann. Statist.); Tibshirani et al. 2019 (NeurIPS) | Coverage tracking on drifting streams; parameter-free variants | Assume per-step label revelation. Agent budget labels arrive per-*rollout*; we show per-step evaluation inflates transfer coverage (0.90 → 0.80 cross-env) and adapt the methods to rollout-atomic revelation |
+| Multi-target / copula conformal | Messoudi et al. 2021 (Pattern Recognition); Sun & Yu 2024 (ICLR) | Joint multi-output coverage via a shared empirical-copula rank | Static calibration; we recalibrate margins *and* the shared rank online, rollout-safely, under model swap |
 | Conditional / Mondrian conformal | Vovk et al. 2005 §4; Vovk 2012 (ACML); Boström & Johansson 2020 | Group-conditional validity | We apply it to turn-depth (the k=1 first-abort-decision hole) and measure where it is and isn't needed |
 | Conformal for LLM outputs | Quach et al. 2024 (ICLR); Mohri & Hashimoto 2024 (ICML); survey: Campos et al. 2024 (TACL) | Guarantees on generation/factuality sets | Output correctness, not resource forecasting; no sequential budget state |
 | Conformal for agent decisions | KnowNo: Ren et al. 2023 (CoRL); ✔ MiCP: "Adaptive Stopping for Multi-Turn LLM Reasoning" (arXiv:2604.01413, 2026); ✔ CCPO (arXiv:2511.11828, AAAI 2026); Conformal Agent Error Attribution (arXiv:2605.06788); CommCP (arXiv:2602.06038) | Ask-for-help triage; turn-budgeted stopping with coverage; cost-aware orchestration with conformal reliability | Correctness-coverage objectives; none predict *remaining resource consumption*, none handle censored doomed-run labels or joint multi-resource validity |
@@ -35,8 +36,11 @@ IDs once at camera-ready.
 - Romano, Patterson, Candès. *Conformalized Quantile Regression.* NeurIPS 2019. arXiv:1905.03222.
 - Gibbs, Candès. *Adaptive Conformal Inference Under Distribution Shift.* NeurIPS 2021. arXiv:2106.00170.
 - Gibbs, Candès. *Conformal Inference for Online Prediction with Arbitrary Distribution Shifts.* JMLR 2024. arXiv:2208.08401. (DtACI)
-- Zaffran, Féron, Goude, Josse, Dieuleveut. *Adaptive Conformal Predictions for Time Series.* ICML 2022. arXiv:2202.07282. (AgACI)
-- Xu, Xie. *Sequential Predictive Conformal Inference for Time Series.* ICML 2023. (SPCI)
+- Zaffran, Dieuleveut, Féron, Goude, Josse. *Adaptive Conformal Predictions for Time Series.* ICML 2022. arXiv:2202.07282. (AgACI; author order verified against arXiv — see paper/references.md)
+- Xu, Xie. *Sequential Predictive Conformal Inference for Time Series.* ICML 2023. arXiv:2212.03463. (SPCI)
+- Angelopoulos, Bates. *A Gentle Introduction to Conformal Prediction and Distribution-Free Uncertainty Quantification.* arXiv:2107.07511.
+- Messoudi, Destercke, Rousseau. *Copula-based Conformal Prediction for Multi-Target Regression.* Pattern Recognition 2021. arXiv:2101.12002.
+- Sun, Yu. *Copula Conformal Prediction for Multi-Step Time Series Forecasting.* ICLR 2024. arXiv:2212.03281.
 - Barber, Candès, Ramdas, Tibshirani. *Conformal Prediction Beyond Exchangeability.* Annals of Statistics 2023. arXiv:2202.13415.
 - Tibshirani, Barber, Candès, Ramdas. *Conformal Prediction Under Covariate Shift.* NeurIPS 2019. arXiv:1904.06019.
 - Vovk. *Conditional Validity of Inductive Conformal Predictors.* ACML 2012.

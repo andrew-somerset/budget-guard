@@ -106,7 +106,7 @@ def summarize_replay(records: pd.DataFrame) -> dict[str, float]:
     successful = records[records["successful"]]
     unique_steps = successful.drop_duplicates(["run_id", "step"]).copy()
     per_run = records.drop_duplicates("run_id")
-    # Ground rule (notes/robustness_loop_prompt.md #4): coverage numbers carry a
+    # Project ground rule #4: coverage numbers carry a
     # rollout-cluster bootstrap CI, never a per-prefix binomial one. Prefixes of one
     # run are correlated, and at small windows the joint qhat is the sample max, so the
     # honest spread across runs matters more than the point estimate.

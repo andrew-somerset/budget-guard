@@ -108,3 +108,20 @@ NumPy · pandas · matplotlib · huggingface_hub. Python 3.12, conda-forge; pinn
 @article{erol2025costofpass, title={Cost-of-Pass: An Economic Framework for Evaluating Language Models}, author={Erol, Mehmet Hamza and El, Batu and Suzgun, Mirac and Y{\"u}ksekg{\"o}n{\"u}l, Mert and Zou, James}, journal={arXiv:2504.13359}, year={2025}}
 @article{chen2023frugalgpt, title={FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance}, author={Chen, Lingjiao and Zaharia, Matei and Zou, James}, journal={arXiv:2305.05176}, year={2023}}
 ```
+
+## Resolution log (2026-07-21)
+
+The 🔎 items above are now resolved (verified against live pages; details + positioning in
+`paper/related_work.md`):
+- **BAGEN** = *Are LLM Agents Budget-Aware?* arXiv:2606.00198 (2026), MLL-Lab (mll-lab-nu on
+  GitHub; project page ragen-ai.github.io/bagen).
+- **MiCP** = *Adaptive Stopping for Multi-Turn LLM Reasoning*, arXiv:2604.01413 (2026) —
+  multi-level conformal error budgets across turns for stopping with overall coverage.
+- **CCPO** = *Conformal Constrained Policy Optimization for Cost-Effective LLM Agents*,
+  arXiv:2511.11828, AAAI 2026 — cost-aware orchestration under a conformal reliability
+  constraint.
+- **Gui, Hore, Ren, Barber**, *Conformalized Survival Analysis with Adaptive Cut-offs*,
+  Biometrika 2024, arXiv:2211.01227 — confirmed.
+- Additional adjacent 2025–2026 agent work found in the same sweep: Budget-Aware Tool-Use
+  (arXiv:2511.17006), Conformal Agent Error Attribution (arXiv:2605.06788), CommCP
+  (arXiv:2602.06038) — all in the related-work table.

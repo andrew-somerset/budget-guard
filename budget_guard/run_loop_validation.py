@@ -28,9 +28,11 @@ from .multiresource import load_warehouse
 from .run_transfer_warehouse import SOURCE_PATH, TARGETS
 
 METHODS = {
-    "frozen joint": {"online": False, "calibration_scheme": "joint"},
-    "adaptive independent": {"online": True, "calibration_scheme": "independent"},
-    "adaptive joint": {"online": True, "calibration_scheme": "joint"},
+    # Labels are explicit about the windowing so this rollout-max online method is not
+    # conflated with the per-prefix multiresource.adaptive_joint_qhats of the same idea.
+    "frozen joint (rollout-max)": {"online": False, "calibration_scheme": "joint"},
+    "online per-resource (rollout-max)": {"online": True, "calibration_scheme": "independent"},
+    "online joint (rollout-max)": {"online": True, "calibration_scheme": "joint"},
 }
 WAREHOUSE_PROGRESS = ("current_cash_usd", "target_cash_usd", "cash_gap_usd")
 
@@ -195,6 +197,9 @@ def main(
         "scenario",
         "method",
         "joint_prefix_coverage",
+        "joint_prefix_coverage_ci_lo",
+        "joint_prefix_coverage_ci_hi",
+        "operative_level",
         "trajectory_joint_coverage",
         "false_stop_rate",
         "failed_run_catch_rate",

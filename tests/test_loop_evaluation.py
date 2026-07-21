@@ -74,6 +74,11 @@ def test_oracle_and_closed_loop_have_different_label_feedback():
     summary = summarize_replay(oracle_records)
     assert "joint_prefix_coverage" in summary
     assert summary["false_stop_rate"] == 1.0
+    # Mandated rollout-cluster bootstrap CI must accompany the point coverage.
+    assert "joint_prefix_coverage_ci_lo" in summary
+    assert "joint_prefix_coverage_ci_hi" in summary
+    assert summary["joint_prefix_coverage_ci_lo"] <= summary["joint_prefix_coverage_ci_hi"]
+    assert "operative_level" in summary
 
 
 def test_terminal_step_stop_cannot_censor_an_already_finished_run():

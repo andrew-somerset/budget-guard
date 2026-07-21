@@ -411,18 +411,39 @@ The independent per-resource adaptive baseline reaches nominal by becoming unbou
 every three-resource Warehouse run, triggering fail-safe pauses 97–99% of the time. The shared
 joint rank remains finite and operational; this is why joint adaptation is not cosmetic.
 
+**Audit caveat (2026-07-20 — read before quoting the table above).** These online-joint numbers
+now carry rollout-cluster 90% CIs (token 0.912 → [0.851, 0.980]; Warehouse ~[0.92, 0.98]), and
+`guard.last_operative_level` reports **~1.0 on every agent scenario**. That means at the default
+10-rollout window the finite-sample joint quantile `ceil((n+1)(1-alpha))/n` rounds up, so the qhat
+is the componentwise **sample maximum over the window** — a conservative worst-of-window bound,
+not a tight 0.90 interval. Three honest consequences: (a) the high per-prefix coverage is
+over-coverage from taking maxes, while trajectory-level coverage is *below* nominal (0.80–0.85)
+under shift, so the simultaneous guarantee is not met; (b) the "independent" baseline is
+*structurally* `+inf` at this window (per-resource level α/3 → 1.1 > 1), so "joint beats
+independent" here is definitional, not empirical — a fair comparison needs windows ≥ ~40 or
+per-prefix windowing; (c) this rollout-max online calibrator is a **different statistical object**
+from the per-prefix `multiresource.adaptive_joint_qhats` used by `run_transfer_warehouse.py` (n≤100,
+per-prefix marginal coverage) — same idea, different question, different numbers, must not be
+conflated. Recommended follow-up: unify both behind one calibrator and either window by prefix
+vectors or raise the window so the operative level is a genuine sub-max quantile.
+
 **Predeclared order/window stress test:** 10 target permutations × windows {5,10,20,40} × five
 transfer scenarios = 200 replay runs. Window 5 is mathematically too small for finite 90%
-calibration and correctly fails safe. Window 10 is the stable cross-family default: token joint
-coverage 0.937–0.951 across orderings; Warehouse 0.938–0.975; automatic false stops 0–4.7%.
-Windows 20–40 adapt too slowly on token shift (mean 0.899 / 0.874), so no task-specific tuning was
-used to rescue them.
+calibration and correctly fails safe. Window 10 is the most *stable* cross-family point (token
+joint coverage 0.937–0.951 across orderings; Warehouse 0.938–0.975; automatic false stops 0–4.7%)
+— but that stability partly reflects the worst-of-window regime in the audit caveat above, not a
+principled 90% calibration size. Windows 20–40 begin to compute a genuine sub-max quantile yet
+adapt too slowly on token shift (mean 0.899 / 0.874). This is a real bias/variance tradeoff with
+no free lunch; the default was chosen for stability, and it should be revisited when the two joint
+calibrators are unified.
 
 **Closed-loop audit:** at the conservative default, oracle and deployment replay match over five
 seeds (tokens 0.912; Warehouse Gemini 0.963) because no successful run is automatically stopped;
-failed-run catch remains 78% / 72%. A replay bug found during this audit—obeying a stop
-recommendation *after* the terminal step and incorrectly censoring an already observed label—was
-fixed and locked by a regression test.
+failed-run catch remains 78% / 72% and is driven by the interval/optimistic-projection rule, not
+the feasibility gate (whose live threshold is deliberately permissive and rarely fires — the docs
+should not over-credit it). A replay bug found during this work—obeying a stop recommendation
+*after* the terminal step and incorrectly censoring an already observed label—was fixed and locked
+by a regression test.
 
 **Honest remaining gap:** BAGEN is still the only real agent benchmark suite. The local source-
 text case proves the generic software path, not external agent validity. A second independent

@@ -8,6 +8,7 @@ import pandas as pd
 
 from .loop_guard import LoopBudgetGuard
 from .loop_schema import RunTrace
+from .metrics import rollout_bootstrap_mean_ci
 
 
 def replay_traces(
@@ -30,6 +31,7 @@ def replay_traces(
         stopped = False
         for index, step in enumerate(trace.steps, start=1):
             decision = guard.after_step(step)
+            operative_level = guard.last_operative_level
             for name in trace.resource_names:
                 cumulative[name] += float(step.usage[name])
             # The terminal step has no future target and is excluded from coverage.
@@ -66,6 +68,7 @@ def replay_traces(
                             "state": decision.state.value,
                             "finish_probability": decision.finish_probability,
                             "evidence_runs": decision.evidence_runs,
+                            "operative_level": operative_level,
                             "stopped": False,
                         }
                     )
@@ -101,17 +104,34 @@ def summarize_replay(records: pd.DataFrame) -> dict[str, float]:
     if records.empty:
         return {}
     successful = records[records["successful"]]
-    unique_steps = successful.drop_duplicates(["run_id", "step"])
+    unique_steps = successful.drop_duplicates(["run_id", "step"]).copy()
     per_run = records.drop_duplicates("run_id")
+    # Ground rule (notes/robustness_loop_prompt.md #4): coverage numbers carry a
+    # rollout-cluster bootstrap CI, never a per-prefix binomial one. Prefixes of one
+    # run are correlated, and at small windows the joint qhat is the sample max, so the
+    # honest spread across runs matters more than the point estimate.
+    ci_lo, ci_hi = (
+        rollout_bootstrap_mean_ci(
+            unique_steps["joint_covered"].to_numpy(dtype=float),
+            unique_steps["run_id"].to_numpy(),
+        )
+        if not unique_steps.empty
+        else (float("nan"), float("nan"))
+    )
     stop_by_run = records.groupby("run_id")["action"].apply(
         lambda values: any(value in {"pause", "abort"} for value in values)
     )
     success_by_run = records.groupby("run_id")["successful"].first()
     result = {
         "joint_prefix_coverage": float(unique_steps["joint_covered"].mean()),
+        "joint_prefix_coverage_ci_lo": ci_lo,
+        "joint_prefix_coverage_ci_hi": ci_hi,
         "trajectory_joint_coverage": float(
             unique_steps.groupby("run_id")["joint_covered"].all().mean()
         ),
+        "operative_level": float(unique_steps["operative_level"].mean())
+        if "operative_level" in unique_steps
+        else float("nan"),
         "false_stop_rate": float(stop_by_run[success_by_run].mean())
         if success_by_run.any()
         else np.nan,

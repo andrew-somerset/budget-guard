@@ -45,12 +45,18 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   gate, replaceable intervention policy, delayed-usage correction, artifact checksum/
   metadata, and dependency-free OpenAI/LangChain/mapping telemetry adapters. The same
   live core now replays token, Warehouse, and independent sequential-text traces.
-- **Generic robustness evidence:** five-seed default-10 joint coverage = 0.912 on
-  Sokoban→SWE-bench tokens and 0.943–0.963 across four Warehouse model swaps, with
-  0–3.1% automatic false stops and 71–78% failed-run catches. A 200-run order/window
-  stress grid selects 10 completed rollouts as the cross-family default; 5 fails safe,
-  while 20–40 adapt too slowly on token shift. Five-seed closed-loop and oracle replay
-  match under the conservative default because no successful run is auto-stopped.
+- **Generic robustness evidence:** five-seed default-10 online-joint coverage = 0.912 on
+  Sokoban→SWE-bench tokens and 0.943–0.963 across four Warehouse model swaps (now with
+  rollout-cluster 90% CIs), with 0–3.1% automatic false stops and 71–78% failed-run
+  catches. A 200-run order/window stress grid picks window=10 for stability; 5 fails safe,
+  20–40 adapt slower on token shift. **Self-audit caveat:** at window=10 the operative
+  conformal level is ~1.0, i.e. the joint qhat is the componentwise sample maximum
+  (worst-of-window), not a calibrated 0.90 interval; trajectory coverage is below nominal
+  (0.80–0.85) under shift; the per-resource baseline is structurally +inf at that window;
+  and this rollout-max online method differs from the per-prefix
+  `multiresource.adaptive_joint_qhats`. Unify the two calibrators + revisit the window
+  before any headline claim. Five-seed closed-loop and oracle replay match under the
+  conservative default because no successful run is auto-stopped.
 
 ## What's blocked (documented, not skipped)
 - **PI-blocked** — which censored-conformal guarantee to claim (selective-on-kept vs

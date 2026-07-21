@@ -101,6 +101,18 @@ class LoopBudgetGuard:
     window. Only a naturally completed, successful, in-budget run contributes one new
     vector of worst-prefix resource errors after it finishes. Aborted or failed runs do
     not receive invented completion labels.
+
+    Windowing note (important, and different from ``multiresource.adaptive_joint_qhats``):
+    this guard calibrates the shared joint rank on **per-rollout worst-prefix** score
+    vectors, so the effective sample size is the number of completed runs in the window
+    (``window_rollouts``), not the number of prefixes. That targets simultaneous coverage
+    over every prefix of a run, but it also means that at small windows the finite-sample
+    joint quantile ``ceil((n+1)(1-alpha))/n`` rounds to 1.0 and the qhat becomes the
+    componentwise sample maximum — a conservative worst-of-window bound, not a tight
+    1-alpha interval. Inspect :attr:`last_operative_level` (~1.0 == worst-case regime) and
+    report rollout-cluster CIs. The separate ``multiresource.adaptive_joint_qhats`` keeps a
+    per-*prefix* window (much larger n) and targets per-prefix marginal coverage; the two
+    deliberately answer different questions and will not produce the same numbers.
     """
 
     def __init__(
@@ -151,6 +163,7 @@ class LoopBudgetGuard:
         self._ledger: ResourceLedger | None = None
         self._last_decision: LoopDecision | None = None
         self._current_gate_probabilities: list[float] = []
+        self._last_operative_level: float | None = None
 
     @classmethod
     def from_traces(
@@ -261,6 +274,16 @@ class LoopBudgetGuard:
     @property
     def gate_evidence_runs(self) -> int:
         return len(self._gate_success_window)
+
+    @property
+    def last_operative_level(self) -> float | None:
+        """Shared conformal rank level used for the most recent decision.
+
+        Equals ~1.0 when the window is small enough that the finite-sample joint
+        quantile is the componentwise sample maximum (a conservative worst-of-window
+        bound rather than a 1-alpha interval). NaN for the per-resource baseline.
+        """
+        return self._last_operative_level
 
     @property
     def active(self) -> bool:
@@ -493,7 +516,10 @@ class LoopBudgetGuard:
     def _current_qhats(self) -> np.ndarray:
         scores = np.asarray(self._score_window, dtype=float)
         if self.calibration_scheme == "joint":
-            return _joint_rank_qhats(scores, self.alpha)[0]
+            qhats, level = _joint_rank_qhats(scores, self.alpha)
+            self._last_operative_level = level
+            return qhats
+        self._last_operative_level = float("nan")
         if scores.size == 0:
             return np.full(len(self.resource_names), np.inf)
         per_resource_alpha = self.alpha / len(self.resource_names)

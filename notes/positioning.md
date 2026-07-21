@@ -149,12 +149,22 @@ install caught and fixed a missing scikit-learn dependency.
 tokens or Warehouse columns: a versioned RunStart/StepUsage/UsageCorrection/RunFinish/
 RunAbort contract, resource ledger, generic features, stateful multi-resource guard,
 separate intervention policy, and framework telemetry adapters now share one live path.
-At the stress-selected 10-completed-run window, five-seed adaptive-joint coverage is 0.912
+At the stress-selected 10-completed-run window, five-seed online-joint coverage is 0.912
 on Sokoban→SWE-bench tokens and 0.943–0.963 across four Warehouse model swaps, with
 0–3.1% automatic false stops and 71–78% failed-run catches. An independent sequential-
 source-text corpus reaches 0.958 but remains a **pipeline smoke test, not an agent-domain
 result**. Order/window stress (200 replay runs) and oracle-vs-closed-loop replay are now
 explicit scripts rather than prose-only limitations.
+
+**Audit correction (2026-07-20).** Those online-joint numbers now carry rollout-cluster 90%
+CIs, and `guard.last_operative_level` is ~1.0 on every agent scenario: at window=10 the joint
+qhat is the componentwise sample maximum (worst-of-window), not a tight 0.90 interval. So
+per-prefix over-coverage coexists with trajectory coverage *below* nominal (0.80–0.85) under
+shift, the per-resource baseline is structurally +inf at that window (its "win" is
+definitional), and this rollout-max online method is a different object from the per-prefix
+`multiresource.adaptive_joint_qhats`. Do not headline these as calibrated 0.90 intervals;
+headline them as a conservative, self-adapting worst-of-window monitor, and unify the two
+joint calibrators before the write-up.
 
 **Claim boundary:** provider/task-neutral for measurable additive resource loops is now a
 software and BAGEN-supported claim. "Works across real agent domains" is not yet supported:

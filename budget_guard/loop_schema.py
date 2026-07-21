@@ -199,7 +199,15 @@ class LedgerSnapshot:
 
 
 class ResourceLedger:
-    """Validate and accumulate one live run without any task-specific assumptions."""
+    """Validate and accumulate one live run without any task-specific assumptions.
+
+    ``allow_partial_usage`` is a deliberate foot-gun: a resource omitted from a step is
+    treated as **zero usage this step**, which *under-counts* cumulative spend and biases a
+    budget guard toward *not* aborting (optimistic, unsafe). Enable it only when a missing
+    resource genuinely had zero usage that step — never to paper over telemetry you simply
+    have not collected yet. For late-arriving authoritative usage, record it and later
+    :meth:`correct` the step instead of leaving it out.
+    """
 
     def __init__(self, start: RunStart, *, allow_partial_usage: bool = False):
         self.start_event = start

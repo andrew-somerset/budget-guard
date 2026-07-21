@@ -187,6 +187,21 @@ def test_independent_adaptive_baseline_and_scheme_validation():
         LoopBudgetGuard.from_traces(_synthetic_traces(), calibration_scheme="unknown")
 
 
+def test_small_window_joint_qhat_degenerates_to_sample_max_and_is_reported():
+    """Honesty check: at window=10 the joint level is ~1.0 (worst-of-window), not 0.90.
+
+    The guard must not silently present a sample-max bound as a 1-alpha interval; the
+    operative level is exposed so callers/evaluation can see the conservative regime.
+    """
+    guard = _guard()  # default window_rollouts=10
+    guard.start("live", _specs(), {"difficulty": 1})
+    guard.after_step({"tokens": 150, "usd": 0.7, "seconds": 30}, {"progress": 2})
+    assert guard.last_operative_level is not None
+    assert guard.last_operative_level >= 0.999  # rounds up to the componentwise max
+    guard.abort("cleanup")
+
+
+
 def test_live_delayed_usage_correction_recomputes_without_new_step():
     guard = _guard()
     guard.start("live", _specs(), {"difficulty": 1})

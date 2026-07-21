@@ -687,3 +687,33 @@ coding/browser/workflow-agent logs or anonymized live pilot exist in this worksp
 collect one independent agent JSONL stream via the new adapters, then run the unchanged
 validation/closed-loop harness. Also still PI-blocked: censored guarantee framing and whether
 to combine the generic adaptive guard with gated-IPCW.
+
+### 2026-07-20 (later) — Self-audit of the loop layer: corrections applied
+
+Re-reviewed the loop implementation critically (not just "tests green") and found three
+soundness/honesty issues plus two smaller ones. None are correctness bugs in the sense of
+invalid intervals, but they change how the results must be described:
+1. **Operative level degeneracy.** At the promoted default `window_rollouts=10`, the joint
+   finite-sample level `ceil((n+1)(1-alpha))/n` = 1.0, so the joint qhat is the componentwise
+   sample maximum of the window — a worst-of-window bound, not a 0.90 interval (verified
+   numerically; even n=20 often collapses to the max for the simultaneous event, non-degenerate
+   only around n>=40). Added `guard.last_operative_level`, surfaced it in replay/validation, and
+   corrected docs. Not a bug (it is the valid conformal bound at n=10) but was mis-framed.
+2. **Definitional baseline.** The per-resource ("independent") baseline is structurally +inf at
+   window=10 (per-margin level alpha/3 -> 1.1 > 1), so "joint beats independent" at the default
+   is definitional. Relabeled methods (`online joint (rollout-max)` etc.) and flagged that a fair
+   comparison needs window >= ~40 or per-prefix windowing.
+3. **Dual divergent "adaptive joint".** `loop_guard` (rollout-max, n<=window) and
+   `multiresource.adaptive_joint_qhats` (per-prefix, n<=100) share a name but answer different
+   questions and give different numbers (0.94-0.96 vs 0.86-0.88). Documented the divergence in
+   the guard docstring; recommended unifying behind one calibrator.
+4. **Dropped cluster CIs.** The loop harness reported point means, violating the project's own
+   ground-rule #4. Restored rollout-cluster bootstrap CIs in `summarize_replay` (+regression test).
+5. **Gate is near-inert live.** The online gate threshold is deliberately permissive; failed-run
+   catch is driven by the interval/optimistic-projection rule, not the gate. Corrected the docs
+   that over-credited the gate.
+Also confirmed no interval-validity bugs: `_ordered_predictions` is a monotone transform applied
+identically to cal and serve (exchangeability preserved); the negative-qhat shrink cap only widens
+intervals; online updates still occur strictly after natural completion. Full suite after fixes:
+**60 passed / 2 skipped**, exit 0. Recommended next engineering step before any write-up: unify the
+two joint calibrators and pick the window from a non-degenerate operating point.

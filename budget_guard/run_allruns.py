@@ -122,8 +122,10 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     ax.set_title(f"Guard coverage across all {len(table)} runs vs agent self-report (x)")
     ax.grid(axis="x", alpha=0.25)
     ax.set_axisbelow(True)
-    ax.legend(frameon=False, fontsize=8, loc="lower left")
-    fig.savefig("figures/allruns.png", dpi=200)
+    # Legend below the axes: loc="lower left" sat on top of the last run's markers.
+    ax.legend(frameon=False, fontsize=8, ncol=4, loc="upper center",
+              bbox_to_anchor=(0.5, -0.02))
+    fig.savefig("figures/allruns.png", dpi=200, bbox_inches="tight")
 
     print(table.to_string(index=False))
     ok = table[["split-CQR", "SPCI", "DtACI"]].ge(0.85).mean()

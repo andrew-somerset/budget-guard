@@ -24,6 +24,7 @@ from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, spci, tune_gamm
 from .extract import flatten_to_samples, load_rollouts, samples_to_dataframe
 from .features import build_xy
 from .metrics import frac_unbounded, marginal_coverage, normalized_width
+from .plotting import UNBOUNDED_NOTE, group_bar_width, mark_unbounded, nominal_line
 from .split import group_split
 
 _DATA = os.path.join(os.path.dirname(__file__), "..", "data", "bagen_hf", "estimation")
@@ -94,31 +95,33 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "SPCI": VIOLET, "DtACI": GREEN}
     models = list(dict.fromkeys(table["target_model"]))
     xs = np.arange(len(models))
-    width = 0.20
 
-    fig, ax = plt.subplots(figsize=(9.5, 4.4), constrained_layout=True)
+    width = group_bar_width(len(methods))
+    fig, ax = plt.subplots(figsize=(10, 5.0), constrained_layout=True)
+    any_unbounded = False
     for i, method in enumerate(methods):
-        vals = [
-            table[(table["target_model"] == m) & (table["method"] == method)]["coverage"].item()
-            for m in models
-        ]
+        sel = [table[(table["target_model"] == m) & (table["method"] == method)] for m in models]
+        vals = [s["coverage"].item() for s in sel]
+        fracs = [float(s["frac_unbounded"].item()) for s in sel]
         offset = (i - (len(methods) - 1) / 2) * width
-        bars = ax.bar(xs + offset, vals, width=width - 0.03, color=colors[method], label=method)
+        bars = ax.bar(xs + offset, vals, width=width * 0.86, color=colors[method], label=method)
+        any_unbounded |= mark_unbounded(ax, bars, fracs, vals)
         for bar, v in zip(bars, vals):
-            ax.text(bar.get_x() + bar.get_width() / 2, v + 0.012, f"{v:.2f}",
-                    ha="center", fontsize=8)
-    ax.axhline(1 - alpha, color="#4A5361", lw=1.2, ls="--")
-    ax.text(0.995, 1 - alpha + 0.015, f"nominal {1 - alpha:.2f}", ha="right",
-            transform=ax.get_yaxis_transform(), fontsize=9, color="#4A5361")
+            ax.text(bar.get_x() + bar.get_width() / 2, v + 0.014, f"{v:.2f}",
+                    ha="center", va="bottom", fontsize=7.5)
+    nominal_line(ax, alpha)
     ax.set_xticks(xs, models)
-    ax.set_ylim(0, 1.12)
+    ax.set_ylim(0, 1.16)
     ax.set_ylabel("marginal coverage on target stream")
-    ax.set_title("Model-swap transfer (SWE-bench): guard calibrated on claude-opus-4.7, "
-                 "deployed on other models")
+    title = ("Model-swap transfer (SWE-bench): guard calibrated on claude-opus-4.7, "
+             "deployed on other models")
+    if any_unbounded:
+        title += f"\n{UNBOUNDED_NOTE}"
+    ax.set_title(title, fontsize=10.5)
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
-    ax.legend(frameon=False, fontsize=9, ncol=4, loc="lower center", bbox_to_anchor=(0.5, 1.06))
-    fig.savefig("figures/transfer_swebench.png", dpi=200)
+    ax.legend(frameon=False, fontsize=9, ncol=5, loc="upper center", bbox_to_anchor=(0.5, -0.07))
+    fig.savefig("figures/transfer_swebench.png", dpi=200, bbox_inches="tight")
 
     print(table.to_string(index=False))
     print("\nwrote figures/transfer_swebench.png, tables/transfer_swebench.csv")

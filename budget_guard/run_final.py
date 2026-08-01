@@ -63,6 +63,29 @@ def _collect(*names: str) -> None:
             print(f"  MISSING {name} (driver did not write it)")
 
 
+def _require_data() -> None:
+    """Fail early and actionably when the BAGEN subset has not been fetched.
+
+    Without this, the first driver dies on a raw FileNotFoundError naming a path deep
+    inside data/bagen_hf/, which reads like a bug rather than a missing download step —
+    and `make repro` is a plausible first command for someone who has just built the
+    image.
+    """
+    data = os.path.join(os.path.dirname(__file__), "..", "data", "bagen_hf")
+    if os.path.isdir(data) and os.listdir(data):
+        return
+    raise SystemExit(
+        "No BAGEN data found at data/bagen_hf/.\n\n"
+        "The experiment drivers read logged rollouts that are not part of the repo\n"
+        "(licence + size); fetch the revision-pinned subset first:\n\n"
+        "    make fetch          # or: python scripts/fetch_bagen.py\n\n"
+        "Nothing else is needed — the fetch is pinned to a fixed BAGEN revision, so it\n"
+        "produces the same bytes every reported number was computed from.\n\n"
+        "To check the committed results without regenerating them, run:\n"
+        "    make check-numbers"
+    )
+
+
 def _has_multimodel_data() -> bool:
     """True when other models' swebench trajectories are on disk (model-swap + breadth)."""
     try:
@@ -97,6 +120,7 @@ def _remaining_tables() -> None:
 
 
 def main(full: bool = False) -> None:
+    _require_data()
     run_multiresource.main(seeds=SEEDS, outdir=OUTDIR)       # C2 joint (like-for-like)
     run_economic_warehouse.main(seeds=SEEDS, outdir=OUTDIR)  # C3 abort frontier
     run_gated.main(seeds=SEEDS, outdir=OUTDIR)               # selective frontier (methods)

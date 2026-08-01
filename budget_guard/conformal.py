@@ -36,7 +36,9 @@ _LGBM_PARAMS = dict(
 
 
 def _fit_point(X, y):
-    from lightgbm import LGBMRegressor
+    from ._deps import require_lightgbm
+
+    LGBMRegressor = require_lightgbm().LGBMRegressor
 
     model = LGBMRegressor(objective="regression", **_LGBM_PARAMS)
     model.fit(X, y)
@@ -44,7 +46,9 @@ def _fit_point(X, y):
 
 
 def _fit_quantile(X, y, q: float):
-    from lightgbm import LGBMRegressor
+    from ._deps import require_lightgbm
+
+    LGBMRegressor = require_lightgbm().LGBMRegressor
 
     model = LGBMRegressor(objective="quantile", alpha=q, **_LGBM_PARAMS)
     model.fit(X, y)

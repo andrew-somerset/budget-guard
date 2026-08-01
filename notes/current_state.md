@@ -39,8 +39,9 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
 - **Artifact:** pip-installable `BudgetGuard` wrapper (`pip install -e .`) + a runnable
   no-data demo (`examples/quickstart.py`). A fresh-env install caught and fixed a missing
   scikit-learn dependency.
-- **Reproducibility:** Python 3.12 venv + `scripts/fetch_bagen.py` (minimal ~105 MB data
-  subset expanded to every model needed by the experiments; BAGEN revision + exact Python
+- **Reproducibility:** Python 3.12 venv + `scripts/fetch_bagen.py` (started as a ~105 MB
+  minimal subset; now **~2.7 GB on disk** after the full multi-model set was downloaded
+  for the breadth/transfer experiments; BAGEN revision + exact Python
   dependencies pinned; every headline number re-derived; full suite now has **65 passed /
   0 skipped** (exit 0; verified 2026-08-01 — the 2 former data-path skips now execute
   because the fetched data is present), plus Python 3.10/3.12 CI on both demos.

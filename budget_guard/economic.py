@@ -27,7 +27,9 @@ _LGBM_PARAMS = dict(
 
 
 def fit_feasibility(X_train, feasible_train):
-    from lightgbm import LGBMClassifier
+    from ._deps import require_lightgbm
+
+    LGBMClassifier = require_lightgbm().LGBMClassifier
 
     model = LGBMClassifier(**_LGBM_PARAMS)
     model.fit(X_train, feasible_train.astype(int))
@@ -96,7 +98,9 @@ def evaluate_stopping(df_test: pd.DataFrame, scores_test: np.ndarray, tau: float
 
 
 def fit_remaining_regressor(X_train, y_train):
-    from lightgbm import LGBMRegressor
+    from ._deps import require_lightgbm
+
+    LGBMRegressor = require_lightgbm().LGBMRegressor
 
     model = LGBMRegressor(objective="regression", **_LGBM_PARAMS)
     model.fit(X_train, y_train)

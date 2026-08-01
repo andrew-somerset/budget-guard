@@ -14,8 +14,17 @@ wrapper that outputs calibrated prediction intervals on an agent's *remaining bu
 ```bash
 conda create -n budget python=3.12 -c conda-forge --override-channels -y
 conda activate budget
+conda install -c conda-forge llvm-openmp -y   # macOS: required by lightgbm, see below
 pip install -r requirements.txt
 ```
+
+> **macOS: LightGBM needs an OpenMP runtime.** The PyPI `lightgbm` wheel links against
+> `@rpath/libomp.dylib` but does not ship it, so without one `import lightgbm` fails with
+> a `dlopen ... Library not loaded: @rpath/libomp.dylib` error that names no package.
+> `conda install -c conda-forge llvm-openmp` (or `brew install libomp`) fixes it. Linux
+> wheels use the system `libgomp`, which is already present on most distributions — and
+> the container installs it explicitly. There is no pip-only fix: this is a system
+> library, so it cannot be expressed in `requirements.txt` or `pyproject.toml`.
 
 ## Reproducible environment (recommended for reproducing reported numbers)
 

@@ -1,0 +1,31 @@
+# Input for the reproducibility lockfile. DO NOT install from this file directly —
+# install from the generated `requirements.lock.txt`, which pins the full transitive
+# dependency tree with hashes.
+#
+# These are the same direct pins as `requirements.txt` (the 2026-07-20 freeze), MINUS
+# `jupyter`: notebooks are an interactive analysis tool and are not needed to regenerate
+# any figure, table, or test result. Excluding it keeps the container image small and
+# removes ~60 packages of resolution surface. If you ever need notebooks inside the
+# container, add jupyter here and re-lock.
+#
+# To regenerate the lockfile, run `make lock` (do not run uv by hand — the flags matter).
+#
+# Note the --exclude-newer cutoff in the Makefile. Without it, resolution consults the
+# live package index, so re-locking would silently pull in whatever was published since
+# — and CI's "is the lockfile stale?" check would fail every time any of the 30-odd
+# transitive dependencies cut a release, for no real reason. The cutoff makes the
+# resolution a pure function of this file. Bump it deliberately when upgrading, then
+# rebuild, re-run the suite, and record any numeric drift in notes/robustness_progress.md.
+# Build backend, pinned so the editable install of budget-guard itself needs no
+# network access and no unpinned build-isolation download at image build time.
+setuptools==83.0.0
+wheel==0.47.0
+
+pandas==3.0.3
+numpy==2.5.1
+scikit-learn==1.9.0
+lightgbm==4.6.0
+scipy==1.18.0
+matplotlib==3.11.0
+pytest==9.1.1
+huggingface_hub==1.22.0

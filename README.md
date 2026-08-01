@@ -17,6 +17,28 @@ conda activate budget
 pip install -r requirements.txt
 ```
 
+## Reproducible environment (recommended for reproducing reported numbers)
+
+The commands above install into whatever OS and CPU architecture you happen to be on.
+For regenerating reported numbers, use the pinned container instead — it fixes the OS,
+the architecture, the full transitive dependency tree (hash-verified), and the thread
+count that floating-point summation order depends on:
+
+```bash
+make build          # digest-pinned python:3.12-slim, linux/amd64
+make test           # full suite inside the container
+make repro          # regenerate figures/ + tables/, then re-check notes/ claims
+make check-numbers  # verify notes/ headline numbers against tables/ (no Docker needed)
+```
+
+Verified 2026-08-01: the container reproduces `tables/transfer_env.csv` from a macOS
+arm64 host run with every coverage, CI bound, and unbounded-fraction **bit-identical**;
+a single `normalized_width` differs by 1 ULP (2.2e-16), the floor for cross-architecture
+float arithmetic. See `Dockerfile` for why each pin is there.
+
+Dependency changes go through `requirements-repro.in` + `make lock`, never by editing
+`requirements.lock.txt` directly; CI fails if the two drift apart.
+
 ## Point at the BAGEN data
 
 The extractor reads BAGEN rollouts. Set `BAGEN_DIR`, or keep the `BAGEN` repo as a sibling

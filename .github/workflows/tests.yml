@@ -25,3 +25,37 @@ jobs:
         run: |
           python examples/quickstart.py
           python examples/loop_quickstart.py
+
+  # Proves the reproducibility image still builds and still passes. Without this the
+  # Dockerfile rots silently: the first dependency change that breaks the build would
+  # not surface until someone tried to reproduce a result, which is the worst moment
+  # to find out.
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Catches the case where requirements-repro.in was edited but the lockfile was
+      # never regenerated — which would leave the image installing versions nobody
+      # declared. Recompiles and fails if the result differs from what is committed.
+      - name: Check lockfile is in sync with its input
+        run: |
+          pipx install uv || python -m pip install uv
+          make lock
+          if ! git diff --exit-code -- requirements.lock.txt; then
+            echo "::error::requirements.lock.txt is stale — run 'make lock' and commit the result."
+            exit 1
+          fi
+
+      - name: Build the pinned image
+        run: docker build --platform=linux/amd64 -t budget-guard .
+
+      # No BAGEN data on the runner, so the two data-path tests skip by design.
+      # Everything else must pass exactly as it does locally.
+      - name: Run the suite inside the container
+        run: docker run --rm --platform=linux/amd64 budget-guard python -m pytest -q
+
+      - name: Run no-data demos inside the container
+        run: |
+          docker run --rm --platform=linux/amd64 budget-guard python examples/quickstart.py
+          docker run --rm --platform=linux/amd64 budget-guard python examples/loop_quickstart.py

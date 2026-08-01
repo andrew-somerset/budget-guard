@@ -8,7 +8,9 @@ _Last updated 2026-07-21 (development branch)._
 > 0.90) at 0% unbounded; model-swap SPCI **0.66–0.89** (not 0.91–0.93); within-
 > distribution and all frozen numbers unchanged; multi-resource adaptive joint
 > (0.86–0.88) was already rollout-safe and stands. See robustness_progress.md
-> 2026-07-21. Quoted transfer numbers below predate the fix.
+> 2026-07-21. **Body updated 2026-08-01** — transfer numbers below are the corrected,
+> post-fix values, checked against `tables/transfer_env.csv` and
+> `tables/transfer_swebench.csv`.
 
 ## Snapshot
 Training-free, distribution-free **budget guards** for long-horizon LLM agents: online
@@ -20,7 +22,7 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
 ## What's done
 - **Core contributions (C1–C4):** calibrated intervals that survive deployment shift
   (agent self-report 47% → ~0.90–0.92; frozen conformal collapses to 0.10 under cross-env
-  shift while SPCI self-heals to 0.90 at 0% unbounded); multi-resource joint coverage
+  shift while SPCI recovers to 0.80 at 0% unbounded); multi-resource joint coverage
   (0.42 → 0.95); economic stopping (86% of doomed-$ saved @ 0% false aborts on warehouse);
   cost-of-pass (−46%).
 - **Methods contribution (censored conformal, rungs 1–3):** resource-specific
@@ -39,10 +41,25 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   scikit-learn dependency.
 - **Reproducibility:** Python 3.12 venv + `scripts/fetch_bagen.py` (minimal ~105 MB data
   subset expanded to every model needed by the experiments; BAGEN revision + exact Python
-  dependencies pinned; every headline number re-derived; full suite now has **59 passed /
-  2 existing data-path skips** (exit 0), plus Python 3.10/3.12 CI on both demos.
+  dependencies pinned; every headline number re-derived; full suite now has **65 passed /
+  0 skipped** (exit 0; verified 2026-08-01 — the 2 former data-path skips now execute
+  because the fetched data is present), plus Python 3.10/3.12 CI on both demos.
+- **Containerized reproduction (2026-08-01):** `Dockerfile` + `make repro`. Base image
+  pinned by digest, `linux/amd64` fixed, full transitive tree hash-locked in
+  `requirements.lock.txt` (38 packages, up from 9 hand-pinned direct deps), single-thread
+  numeric kernels for deterministic float summation order. **Validated:** regenerating
+  `transfer_env` inside the container reproduces the macOS/arm64 host run with every
+  coverage, CI bound and unbounded-fraction bit-identical; one `normalized_width` differs
+  by 1 ULP (2.2e-16), the cross-architecture floor. So the reported numbers are not
+  environment-sensitive. CI now builds the image, runs the suite in it, and fails if
+  `requirements.lock.txt` drifts from `requirements-repro.in`.
+- **Headline-number audit:** `scripts/check_headline_numbers.py` (`make check-numbers`)
+  machine-checks 9 numbers quoted in these notes against the generated CSVs. Added after
+  four stale figures were found here on 2026-08-01 (three pre-leak-fix transfer
+  coverages sitting directly under a correction banner, plus a stale test count and data
+  size). Prose cannot be diffed, so it rots silently; this makes it fail loudly.
 - **Full breadth + model transfer:** all 19 token-budget model×environment runs now execute;
-  SWE-bench model swap confirms frozen 0.38–0.76 vs SPCI 0.91–0.93 at 0% unbounded.
+  SWE-bench model swap confirms frozen 0.38–0.76 vs SPCI 0.66–0.89 at 0% unbounded.
 - **External-budget transfer + adaptive joint method (development):** Opus 4.7 → four
   Warehouse models initially gives frozen Bonferroni joint coverage 0.66–0.79. A new
   rollout-safe recent-error window updates all three resource margins plus their shared
@@ -84,7 +101,8 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   the generic JSONL/adapters, then run the unchanged validation/closed-loop harness. This
   is a data/resource task; do not relabel the source-text smoke test as agent evidence.
 3. **Write-up** — 4-pager led by the transfer figure; add the internal-vs-external contrast
-  (token shift recovers to 0.91–0.93; Warehouse joint shift to 0.86–0.88 overall);
+  (token shift recovers to 0.66–0.89 cross-model and 0.80 cross-env, both at 0%
+  unbounded; Warehouse joint shift to 0.86–0.88 overall);
   methods section around censored rungs 1–3 + rollout-safe adaptive joint calibration;
   related-work table + unresolved citations.
 4. **Artifact release** — replace the placeholder LICENSE holder, prepare an anonymized

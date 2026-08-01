@@ -1,0 +1,3 @@
+env,method,coverage,mean_width,normalized_width,n_test
+swebench,split-absres,1.0,28127.269419357977,3.4730169184765605,135
+swebench,split-CQR,0.9925925925925926,17097.617421068684,2.111129725523371,135

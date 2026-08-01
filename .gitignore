@@ -1,10 +1,16 @@
-# Data + outputs (large / regenerable) — never commit
+# Data + regenerable binary outputs — never commit
 data/
 figures/
-tables/
 *.png
 *.parquet
+
+# CSVs are ignored by default, EXCEPT the generated result tables. Those are the
+# artifacts behind every reported number: 216 KB total, plain text, and diffable — so a
+# re-run that moves a coverage figure shows up in review instead of silently replacing
+# the only copy. Figures stay ignored: regenerable from these CSVs, and binary diffs
+# would bloat history on every run.
 *.csv
+!tables/*.csv
 
 # Python
 __pycache__/

@@ -34,7 +34,8 @@ from .metrics import (
     marginal_coverage,
     median_width,
     normalized_width,
-    rollout_bootstrap_ci,
+    pooled_bootstrap_ci,
+    rollout_bootstrap_draws,
 )
 from .plotting import (
     UNBOUNDED_NOTE,
@@ -96,17 +97,20 @@ def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]
             {"env": env, "method": "agent self-report", "coverage": baseline,
              "cov_ci90_lo": np.nan, "cov_ci90_hi": np.nan,
              "median_width": np.nan, "normalized_width": np.nan,
-             "frac_unbounded": np.nan, "n_test": np.nan, "gamma": np.nan}
+             "frac_unbounded": np.nan, "n_test": np.nan, "gamma": np.nan,
+             "_draws": np.empty(0)}
         )
     for name, (lo, hi) in intervals.items():
-        ci_lo, ci_hi = rollout_bootstrap_ci(yte, lo, hi, groups[te])
+        draws = rollout_bootstrap_draws(yte, lo, hi, groups[te])
         rows.append(
             {
                 "env": env,
                 "method": name,
                 "coverage": marginal_coverage(yte, lo, hi),
-                "cov_ci90_lo": ci_lo,
-                "cov_ci90_hi": ci_hi,
+                # per-seed 90% cluster-bootstrap CI (quantiles of this seed's draws)
+                "cov_ci90_lo": float(np.quantile(draws, 0.05)),
+                "cov_ci90_hi": float(np.quantile(draws, 0.95)),
+                "_draws": draws,
                 "median_width": median_width(lo, hi),
                 "normalized_width": normalized_width(yte, lo, hi, agg="median"),
                 "frac_unbounded": frac_unbounded(hi),
@@ -131,8 +135,6 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
         .agg(
             coverage=("coverage", "mean"),
             coverage_std=("coverage", "std"),
-            cov_ci90_lo=("cov_ci90_lo", "mean"),
-            cov_ci90_hi=("cov_ci90_hi", "mean"),
             median_width=("median_width", "mean"),
             normalized_width=("normalized_width", "mean"),
             frac_unbounded=("frac_unbounded", "mean"),
@@ -140,11 +142,21 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
         )
         .reset_index()
     )
+    # cov_ci90 in the aggregate is a POOLED seed×rollout bootstrap interval — an
+    # actual 90% interval, unlike the pre-2026-08-01 mean of per-seed CI endpoints
+    # (which was not a CI at any level; see metrics.rollout_bootstrap_mean_draws).
+    # Baseline rows have no draws and get NaN.
+    pooled = per_seed.groupby(["env", "method"], sort=False)["_draws"].apply(
+        lambda s: pooled_bootstrap_ci(list(s))
+    )
+    assert len(pooled) == len(agg)
+    agg.insert(4, "cov_ci90_lo", [c[0] for c in pooled])
+    agg.insert(5, "cov_ci90_hi", [c[1] for c in pooled])
     table = agg
 
     os.makedirs("tables", exist_ok=True)
     os.makedirs("figures", exist_ok=True)
-    per_seed.to_csv("tables/coverage_per_seed.csv", index=False)
+    per_seed.drop(columns=["_draws"]).to_csv("tables/coverage_per_seed.csv", index=False)
     table.to_csv("tables/coverage.csv", index=False)
 
     import matplotlib

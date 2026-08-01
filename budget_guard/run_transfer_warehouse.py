@@ -29,8 +29,9 @@ from .conformal import DEFAULT_ALPHA, cqr_split
 from .metrics import (
     frac_unbounded,
     normalized_width,
-    rollout_bootstrap_ci,
-    rollout_bootstrap_mean_ci,
+    pooled_bootstrap_ci,
+    rollout_bootstrap_draws,
+    rollout_bootstrap_mean_draws,
 )
 from .multiresource import (
     RESOURCES,
@@ -82,8 +83,8 @@ def _interval_rows(
         covered = (lo <= y) & (y <= hi)
         covered_all &= covered
         unbounded_any |= ~np.isfinite(hi)
-        ci_lo, ci_hi = rollout_bootstrap_ci(y, lo, hi, groups, seed=seed)
-        late_lo, late_hi = rollout_bootstrap_ci(
+        draws = rollout_bootstrap_draws(y, lo, hi, groups, seed=seed)
+        late_draws = rollout_bootstrap_draws(
             y[late], lo[late], hi[late], groups[late], seed=seed
         )
         rows.append(
@@ -93,11 +94,14 @@ def _interval_rows(
                 "resource": res,
                 "seed": seed,
                 "coverage": float(covered.mean()),
-                "ci_lo": ci_lo,
-                "ci_hi": ci_hi,
+                # per-seed 90% cluster-bootstrap CIs (quantiles of this seed's draws)
+                "ci_lo": float(np.quantile(draws, 0.05)),
+                "ci_hi": float(np.quantile(draws, 0.95)),
                 "late_coverage": float(covered[late].mean()),
-                "late_ci_lo": late_lo,
-                "late_ci_hi": late_hi,
+                "late_ci_lo": float(np.quantile(late_draws, 0.05)),
+                "late_ci_hi": float(np.quantile(late_draws, 0.95)),
+                "_draws": draws,
+                "_late_draws": late_draws,
                 "normalized_width": normalized_width(y, lo, hi, agg="median"),
                 "frac_unbounded": frac_unbounded(hi),
                 "n_test": len(target),
@@ -105,8 +109,8 @@ def _interval_rows(
                 "final_shared_level": final_shared_level,
             }
         )
-    ci_lo, ci_hi = rollout_bootstrap_mean_ci(covered_all, groups, seed=seed)
-    late_lo, late_hi = rollout_bootstrap_mean_ci(
+    draws = rollout_bootstrap_mean_draws(covered_all, groups, seed=seed)
+    late_draws = rollout_bootstrap_mean_draws(
         covered_all[late], groups[late], seed=seed
     )
     rows.append(
@@ -116,11 +120,13 @@ def _interval_rows(
             "resource": "ALL (joint)",
             "seed": seed,
             "coverage": float(covered_all.mean()),
-            "ci_lo": ci_lo,
-            "ci_hi": ci_hi,
+            "ci_lo": float(np.quantile(draws, 0.05)),
+            "ci_hi": float(np.quantile(draws, 0.95)),
             "late_coverage": float(covered_all[late].mean()),
-            "late_ci_lo": late_lo,
-            "late_ci_hi": late_hi,
+            "late_ci_lo": float(np.quantile(late_draws, 0.05)),
+            "late_ci_hi": float(np.quantile(late_draws, 0.95)),
+            "_draws": draws,
+            "_late_draws": late_draws,
             "normalized_width": np.nan,
             "frac_unbounded": float(unbounded_any.mean()),
             "n_test": len(target),
@@ -139,8 +145,8 @@ def _agent_rows(model: str, seed: int, target: pd.DataFrame) -> list[dict]:
     for res in RESOURCES:
         covered = target[f"agent_cov_{res}"].to_numpy(dtype=bool)
         covered_all &= covered
-        ci_lo, ci_hi = rollout_bootstrap_mean_ci(covered, groups, seed=seed)
-        late_lo, late_hi = rollout_bootstrap_mean_ci(covered[late], groups[late], seed=seed)
+        draws = rollout_bootstrap_mean_draws(covered, groups, seed=seed)
+        late_draws = rollout_bootstrap_mean_draws(covered[late], groups[late], seed=seed)
         rows.append(
             {
                 "target_model": model,
@@ -148,11 +154,13 @@ def _agent_rows(model: str, seed: int, target: pd.DataFrame) -> list[dict]:
                 "resource": res,
                 "seed": seed,
                 "coverage": float(covered.mean()),
-                "ci_lo": ci_lo,
-                "ci_hi": ci_hi,
+                "ci_lo": float(np.quantile(draws, 0.05)),
+                "ci_hi": float(np.quantile(draws, 0.95)),
                 "late_coverage": float(covered[late].mean()),
-                "late_ci_lo": late_lo,
-                "late_ci_hi": late_hi,
+                "late_ci_lo": float(np.quantile(late_draws, 0.05)),
+                "late_ci_hi": float(np.quantile(late_draws, 0.95)),
+                "_draws": draws,
+                "_late_draws": late_draws,
                 "normalized_width": np.nan,
                 "frac_unbounded": np.nan,
                 "n_test": len(target),
@@ -160,8 +168,8 @@ def _agent_rows(model: str, seed: int, target: pd.DataFrame) -> list[dict]:
                 "final_shared_level": np.nan,
             }
         )
-    ci_lo, ci_hi = rollout_bootstrap_mean_ci(covered_all, groups, seed=seed)
-    late_lo, late_hi = rollout_bootstrap_mean_ci(
+    draws = rollout_bootstrap_mean_draws(covered_all, groups, seed=seed)
+    late_draws = rollout_bootstrap_mean_draws(
         covered_all[late], groups[late], seed=seed
     )
     rows.append(
@@ -171,11 +179,13 @@ def _agent_rows(model: str, seed: int, target: pd.DataFrame) -> list[dict]:
             "resource": "ALL (joint)",
             "seed": seed,
             "coverage": float(covered_all.mean()),
-            "ci_lo": ci_lo,
-            "ci_hi": ci_hi,
+            "ci_lo": float(np.quantile(draws, 0.05)),
+            "ci_hi": float(np.quantile(draws, 0.95)),
             "late_coverage": float(covered_all[late].mean()),
-            "late_ci_lo": late_lo,
-            "late_ci_hi": late_hi,
+            "late_ci_lo": float(np.quantile(late_draws, 0.05)),
+            "late_ci_hi": float(np.quantile(late_draws, 0.95)),
+            "_draws": draws,
+            "_late_draws": late_draws,
             "normalized_width": np.nan,
             "frac_unbounded": np.nan,
             "n_test": len(target),
@@ -255,16 +265,13 @@ def main(
             )
 
     per_seed = pd.DataFrame(rows)
+    keys = ["target_model", "method", "resource"]
     table = (
-        per_seed.groupby(["target_model", "method", "resource"], sort=False)
+        per_seed.groupby(keys, sort=False)
         .agg(
             coverage=("coverage", "mean"),
             coverage_std=("coverage", "std"),
-            ci_lo=("ci_lo", "mean"),
-            ci_hi=("ci_hi", "mean"),
             late_coverage=("late_coverage", "mean"),
-            late_ci_lo=("late_ci_lo", "mean"),
-            late_ci_hi=("late_ci_hi", "mean"),
             normalized_width=("normalized_width", "mean"),
             frac_unbounded=("frac_unbounded", "mean"),
             n_test=("n_test", "first"),
@@ -273,9 +280,25 @@ def main(
         )
         .reset_index()
     )
+    # Aggregate bands: pooled seed×rollout bootstrap quantiles, NOT means of
+    # per-seed CI endpoints (which is not a CI at any level; see
+    # metrics.rollout_bootstrap_mean_draws).
+    pooled = per_seed.groupby(keys, sort=False)["_draws"].apply(
+        lambda s: pooled_bootstrap_ci(list(s))
+    )
+    pooled_late = per_seed.groupby(keys, sort=False)["_late_draws"].apply(
+        lambda s: pooled_bootstrap_ci(list(s))
+    )
+    assert len(pooled) == len(table) == len(pooled_late)
+    table.insert(5, "ci_lo", [c[0] for c in pooled])
+    table.insert(6, "ci_hi", [c[1] for c in pooled])
+    table.insert(8, "late_ci_lo", [c[0] for c in pooled_late])
+    table.insert(9, "late_ci_hi", [c[1] for c in pooled_late])
     os.makedirs("tables", exist_ok=True)
     os.makedirs("figures", exist_ok=True)
-    per_seed.to_csv("tables/transfer_warehouse_per_seed.csv", index=False)
+    per_seed.drop(columns=["_draws", "_late_draws"]).to_csv(
+        "tables/transfer_warehouse_per_seed.csv", index=False
+    )
     table.to_csv("tables/transfer_warehouse.csv", index=False)
 
     import matplotlib

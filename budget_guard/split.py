@@ -27,6 +27,19 @@ def group_split(
         "cal": set(shuffled[n_train : n_train + n_cal]),
         "test": set(shuffled[n_train + n_cal :]),
     }
+    # A split that was REQUESTED (frac > 0) but came out empty must be an error,
+    # not a silent degradation: with an empty cal, the conformal quantile of zero
+    # scores is +inf, every interval becomes [0, inf), and coverage reads a
+    # meaningless 1.0 with no symptom (round() makes this reachable at n <= 3
+    # rollouts with the default fracs). The allocation itself is deliberately
+    # unchanged — the committed tables' splits must stay bit-identical.
+    for name, frac in zip(("train", "cal", "test"), fracs):
+        if frac > 0 and not parts[name]:
+            raise ValueError(
+                f"group_split: the '{name}' split is empty (fracs={fracs}, "
+                f"{n} rollouts). Too few rollouts to honor every requested "
+                "fraction — use more data or set that fraction to 0 explicitly."
+            )
     masks = {
         name: df["rollout_index"].isin(members).to_numpy()
         for name, members in parts.items()

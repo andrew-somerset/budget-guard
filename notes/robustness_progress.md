@@ -846,3 +846,74 @@ of 9 claims immediately after the re-run, which is what surfaced the size of the
 Claims updated, plus two new ones pinning the variance gap that the reframing now rests on.
 
 Reproduce: `python -m budget_guard.run_transfer`; `python scripts/check_headline_numbers.py`.
+
+### 2026-08-01 (later) — Adversarial audit round 1: invalid error bars on every multi-seed figure (CI SEMANTICS CHANGE; point estimates unchanged)
+
+Status: **Fixed + regenerated + invariance-verified.** A 13-lane adversarial audit
+(specialized reviewers + verification, run because the codebase is largely AI-generated)
+surfaced 8 findings in its first 4 lanes; manual verification confirmed all 8 and found
+the principal defect present in 2 further drivers the remaining lanes would have covered.
+
+**The major finding — every multi-seed aggregate "CI" was a cross-seed MEAN of per-seed
+bootstrap CI endpoints, which is not a confidence interval at any level.** Seeds whose
+coverage hit 1.0 contribute degenerate [1,1] intervals whose mean swallows the seeds that
+landed at 0.70: the model-swap figure drew frozen split-CQR on gpt5.2instant at 0.89 with
+a +/-0.014 "cluster-bootstrap CI" while the five per-seed coverages were {0.76, 1.0, 1.0,
+0.70, 1.0} (honest half-width ~0.15). Present identically in run_transfer,
+run_transfer_env, run_coverage (cov_ci90 columns), run_conditional, and
+run_transfer_warehouse (both ci and late_ci) — one copied aggregation pattern.
+
+**Fix.** metrics.py now exposes the bootstrap DRAWS (rollout_bootstrap_mean_draws /
+rollout_bootstrap_draws) and a pooled_bootstrap_ci that pools each seed's draws before
+taking quantiles — one interval carrying both variance sources (within-seed rollout
+resampling + between-seed calibration-split spread). All five drivers aggregate with it;
+per-seed CSVs keep the per-seed CIs (numerically identical to before); figures/tables
+relabeled "90% pooled seed x rollout cluster bootstrap". run_transfer_env now also writes
+tables/transfer_env_per_seed.csv (it previously wrote no per-seed artifact at all).
+
+**Effect on the bands (point estimates bit-identical, verified by regenerating all six
+drivers and diffing coverage / cov_std / late_coverage columns against git HEAD):**
+
+| method (model-swap) | band ratio new/old (mean, max) |
+|---|---|
+| SPCI | 1.01x, 1.03x — already honest |
+| ACI-CQR | 1.09x, 1.17x |
+| DtACI | 1.80x, 2.42x |
+| split-CQR (frozen) | **4.80x, 11.12x** |
+
+This is the cleanest single quantification yet of the 2026-08-01 reliability reframing:
+correcting the uncertainty accounting leaves the adaptive methods' bands untouched and
+blows the frozen baseline's up ~5x, because frozen coverage IS the calibration-split
+lottery. Warehouse adaptive-joint pooled bands: [0.82-0.91] across the four targets, all
+containing 0.90.
+
+**Secondary fixes (same round):**
+1. split.py raises ValueError when a requested (frac>0) split comes out EMPTY — before,
+   2-3 rollouts with default fracs silently produced an empty cal, every interval became
+   [0, inf), and coverage read a meaningless 1.0. Allocation unchanged (committed splits
+   bit-identical).
+2. conformal.py: aci_cqr/spci/dtaci now reject non-contiguous groups arrays. The
+   rollout-boundary buffering absorbs at ADJACENT id changes; a reordered/interleaved
+   stream (e.g. rows sorted by depth k) silently absorbed still-running rollouts' labels
+   — a temporal leak, demonstrated by an audit repro. All shipped pipelines emit
+   contiguous streams (verified); the check turns a silent future leak into an error.
+3. plotting.py mark_unbounded: the 0.02 suppression threshold is gone — any nonzero
+   unbounded fraction now gets the hatch + tag (up to 2% [0,inf) intervals could
+   previously inflate a bar by 0.02 absolute, a fifth of the alpha=0.1 miss budget,
+   undisclosed).
+4. run_allruns.py: normalized-token fallback recovers the searchr1 codex agent-self-report
+   baseline (0.202 — one of the worst self-reports, i.e. omitting it WEAKENED our own
+   contrast) that an origin-vs-estimation directory naming mismatch ("openai-openai" vs
+   "openai") silently dropped; absent baselines now print a warning. All 19 guard
+   coverages unchanged.
+5. run_transfer.py aggregate no longer publishes gamma as a cross-seed mean (0.023 — a
+   value outside the tuning grid that no run ever used); per-seed CSV keeps the real
+   selections {0.05, 0.005}.
+
+Verified after all fixes: pytest 65 passed; all six affected drivers regenerated;
+invariance PASS (every coverage/std point estimate identical to HEAD); check_headline_numbers
+11/11. Audit lanes 5-13 (data pipeline, censored/multiresource, guard/economic, loop
+layer, drivers-B, tests-audit, infra, stats-methodology) resumed and running.
+
+Reproduce: `python -m budget_guard.run_{coverage,transfer,transfer_env,conditional,allruns,transfer_warehouse}`;
+`python scripts/check_headline_numbers.py`.

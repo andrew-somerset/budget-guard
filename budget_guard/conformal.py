@@ -76,6 +76,33 @@ def _clip_nonneg(lo: np.ndarray) -> np.ndarray:
     return np.maximum(lo, 0.0)
 
 
+def _require_contiguous_groups(groups: np.ndarray) -> None:
+    """Reject test streams whose rollout ids are interleaved or reordered.
+
+    The rollout-safe buffering in aci_cqr / spci / dtaci absorbs a rollout's
+    buffered labels when the ADJACENT group id changes. That is only equivalent to
+    "absorb when the rollout finishes" if each rollout occupies one unbroken block.
+    If an id reappears later (e.g. someone sorts the test rows by turn depth before
+    calling), every id transition silently absorbs a still-running rollout's
+    labels — qhat/alpha_t then depend on remaining-to-completion labels that do
+    not exist yet, and coverage is inflated by temporal leakage with no visible
+    symptom. All streams built by extract.flatten_to_samples are contiguous, so
+    this check never fires on the shipped pipelines; it exists to make the failure
+    loud instead of silent for future callers.
+    """
+    boundaries = np.flatnonzero(groups[1:] != groups[:-1])
+    block_ids = groups[np.r_[0, boundaries + 1]]
+    if len(block_ids) != len(np.unique(block_ids)):
+        raise ValueError(
+            "groups must be contiguous per rollout (each rollout id in one "
+            "unbroken block): at least one id reappears after a boundary, which "
+            "would leak a still-running rollout's labels into predictions made "
+            "before that rollout finished. Sort/keep the test rows in original "
+            "rollout order, or pass groups=None only for genuinely per-step-"
+            "labeled streams."
+        )
+
+
 def split_conformal_absres(X_train, y_train, X_cal, y_cal, X_test, alpha=DEFAULT_ALPHA):
     """Symmetric intervals: point prediction ± calibrated |residual| quantile."""
     model = _fit_point(X_train, y_train)
@@ -122,6 +149,8 @@ def aci_cqr(
     cal_scores = np.sort(_cqr_scores(mlo.predict(X_cal), mhi.predict(X_cal), y_cal))
     qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
     groups = None if groups is None else np.asarray(groups)
+    if groups is not None:
+        _require_contiguous_groups(groups)
 
     alpha_t = alpha
     lo = np.empty(len(y_test))
@@ -172,6 +201,8 @@ def spci(
     )
     qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
     groups = None if groups is None else np.asarray(groups)
+    if groups is not None:
+        _require_contiguous_groups(groups)
 
     lo = np.empty(len(y_test))
     hi = np.empty(len(y_test))
@@ -260,6 +291,8 @@ def dtaci(
     qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
     n_cal = len(cal_scores)
     groups = None if groups is None else np.asarray(groups)
+    if groups is not None:
+        _require_contiguous_groups(groups)
 
     K = len(gammas)
     expert_alpha = np.full(K, alpha)

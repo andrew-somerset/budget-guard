@@ -54,8 +54,31 @@ def discover_runs() -> list[dict]:
     return runs
 
 
+def _norm_tokens(name: str) -> str:
+    """Collapse immediately-repeated '-' tokens and case-fold, so origin and
+    estimation directory names that normalize the model differently still match
+    (e.g. origin 'searchr1-origin-openai-openai-5-2-codex-...' vs estimation
+    'searchr1-origin-openai-5-2-codex-...')."""
+    out: list[str] = []
+    for tok in name.lower().split("-"):
+        if not out or out[-1] != tok:
+            out.append(tok)
+    return "-".join(out)
+
+
 def _baseline_for(run_dir: str) -> float | None:
-    for est in glob.glob(f"{_DATA}/estimation/{run_dir.split('-main')[0]}*/*.json"):
+    prefix = run_dir.split("-main")[0]
+    candidates = glob.glob(f"{_DATA}/estimation/{prefix}*/*.json")
+    if not candidates:
+        # Exact-prefix miss: retry with normalized names. Without this fallback the
+        # searchr1 codex run's estimation record (which exists, coverage 0.2023)
+        # was silently dropped and the figure showed no agent baseline for it.
+        want = _norm_tokens(prefix)
+        for est_dir in sorted(glob.glob(f"{_DATA}/estimation/*")):
+            if _norm_tokens(os.path.basename(est_dir)).startswith(want):
+                candidates = glob.glob(f"{est_dir}/*.json")
+                break
+    for est in candidates:
         if est.endswith("_pairs.json") or "dialogues" in est:
             continue
         try:
@@ -88,12 +111,17 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
             "SPCI": marginal_coverage(y[te], *spci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha, groups=gte)[:2]),
             "DtACI": marginal_coverage(y[te], *dtaci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha, groups=gte)[:2]),
         }
+        baseline = _baseline_for(run["run_dir"])
+        if baseline is None:
+            # Loud, not silent: an absent baseline should be a known data gap,
+            # never an unnoticed matching failure.
+            print(f"NOTE: no agent-self-report estimation record found for {run['run_dir']}")
         rows.append(
             {
                 "env": run["env"], "model": run["model"],
                 "n_rollouts": df["rollout_index"].nunique(), "n_samples": len(df),
                 "n_test": int(te.sum()),
-                "agent": _baseline_for(run["run_dir"]),
+                "agent": baseline,
                 **covs,
             }
         )

@@ -7,7 +7,8 @@ trajectory shapes shift together — frozen conformal should break badly; the on
 methods see labels as runs complete and must re-find coverage.
 
 Usage: python -m budget_guard.run_transfer_env
-Writes figures/transfer_env.png and tables/transfer_env.csv.
+Writes figures/transfer_env.png, tables/transfer_env.csv and
+tables/transfer_env_per_seed.csv.
 """
 from __future__ import annotations
 
@@ -19,7 +20,13 @@ import pandas as pd
 from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, spci, tune_gamma
 from .data import ENVS, load_env
 from .features import build_xy
-from .metrics import frac_unbounded, marginal_coverage, normalized_width, rollout_bootstrap_ci
+from .metrics import (
+    frac_unbounded,
+    marginal_coverage,
+    normalized_width,
+    pooled_bootstrap_ci,
+    rollout_bootstrap_draws,
+)
 from .plotting import UNBOUNDED_NOTE, group_bar_width, mark_unbounded, nominal_line
 from .split import group_split
 
@@ -47,22 +54,37 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
                 "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
                 "DtACI": dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
             }.items():
-                ci = rollout_bootstrap_ci(yte, lo, hi, gte, seed=seed)
+                draws = rollout_bootstrap_draws(yte, lo, hi, gte, seed=seed)
                 rows.append({
                     "target_env": env, "method": name, "seed": seed,
                     "coverage": marginal_coverage(yte, lo, hi),
-                    "ci_lo": ci[0], "ci_hi": ci[1],
+                    # per-seed 90% cluster-bootstrap CI (quantiles of this seed's draws)
+                    "ci_lo": float(np.quantile(draws, 0.05)),
+                    "ci_hi": float(np.quantile(draws, 0.95)),
                     "normalized_width": normalized_width(yte, lo, hi, agg="median"),
                     "frac_unbounded": frac_unbounded(hi),
+                    "_draws": draws,  # pooled across seeds for the aggregate band
                 })
-    table = (pd.DataFrame(rows).groupby(["target_env", "method"], sort=False)
+    per_seed = pd.DataFrame(rows)
+    table = (per_seed.groupby(["target_env", "method"], sort=False)
              .agg(coverage=("coverage", "mean"), cov_std=("coverage", "std"),
-                  ci_lo=("ci_lo", "mean"), ci_hi=("ci_hi", "mean"),
                   normalized_width=("normalized_width", "mean"),
                   frac_unbounded=("frac_unbounded", "mean")).reset_index())
+    # Aggregate band: pooled seed×rollout bootstrap quantiles, NOT a mean of
+    # per-seed CI endpoints (which is not a CI and hides seed-to-seed spread —
+    # see metrics.rollout_bootstrap_mean_draws).
+    pooled = per_seed.groupby(["target_env", "method"], sort=False)["_draws"].apply(
+        lambda s: pooled_bootstrap_ci(list(s))
+    )
+    assert len(pooled) == len(table)
+    table["ci_lo"] = [c[0] for c in pooled]
+    table["ci_hi"] = [c[1] for c in pooled]
 
     os.makedirs("tables", exist_ok=True)
     os.makedirs("figures", exist_ok=True)
+    per_seed.drop(columns=["_draws"]).to_csv(
+        "tables/transfer_env_per_seed.csv", index=False
+    )
     table.to_csv("tables/transfer_env.csv", index=False)
 
     import matplotlib
@@ -94,7 +116,8 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     ax.set_ylim(0, 1.16)
     ax.set_ylabel("marginal coverage on target stream")
     title = ("Cross-env transfer (same model): frozen conformal collapses, online self-heals\n"
-             f"calibrated on sokoban, deployed on new task types ({len(seeds)} seeds, cluster-bootstrap CI)")
+             f"calibrated on sokoban, deployed on new task types ({len(seeds)} seeds; "
+             "band = 90% pooled seed×rollout cluster bootstrap)")
     if any_unbounded:
         title += f"\n{UNBOUNDED_NOTE}"
     ax.set_title(title, fontsize=10.5)
@@ -105,7 +128,8 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     fig.savefig("figures/transfer_env.png", dpi=200, bbox_inches="tight")
 
     print(table.to_string(index=False))
-    print("\nwrote figures/transfer_env.png, tables/transfer_env.csv")
+    print("\nwrote figures/transfer_env.png, tables/transfer_env.csv, "
+          "tables/transfer_env_per_seed.csv")
     return table
 
 

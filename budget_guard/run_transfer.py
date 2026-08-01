@@ -32,7 +32,8 @@ from .metrics import (
     frac_unbounded,
     marginal_coverage,
     normalized_width,
-    rollout_bootstrap_ci,
+    pooled_bootstrap_ci,
+    rollout_bootstrap_draws,
 )
 from .plotting import UNBOUNDED_NOTE, group_bar_width, mark_unbounded, nominal_line
 from .split import group_split
@@ -82,40 +83,55 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
                 "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
                 "DtACI": dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
             }.items():
-                ci = rollout_bootstrap_ci(yte, lo, hi, gte, seed=seed)
+                draws = rollout_bootstrap_draws(yte, lo, hi, gte, seed=seed)
                 rows.append(
                     {
                         "target_model": model,
                         "method": name,
                         "seed": seed,
                         "coverage": marginal_coverage(yte, lo, hi),
-                        "ci_lo": ci[0],
-                        "ci_hi": ci[1],
+                        # per-seed 90% cluster-bootstrap CI (quantiles of this
+                        # seed's draws — identical to rollout_bootstrap_ci)
+                        "ci_lo": float(np.quantile(draws, 0.05)),
+                        "ci_hi": float(np.quantile(draws, 0.95)),
                         "normalized_width": normalized_width(yte, lo, hi, agg="median"),
                         "frac_unbounded": frac_unbounded(hi),
                         "n_test": len(yte),
                         "gamma": gamma if name == "ACI-CQR" else np.nan,
+                        "_draws": draws,  # pooled across seeds for the aggregate band
                     }
                 )
     os.makedirs("tables", exist_ok=True)
     os.makedirs("figures", exist_ok=True)
 
     per_seed = pd.DataFrame(rows)
-    per_seed.to_csv("tables/transfer_swebench_per_seed.csv", index=False)
+    per_seed.drop(columns=["_draws"]).to_csv(
+        "tables/transfer_swebench_per_seed.csv", index=False
+    )
+    # gamma is deliberately NOT mean-aggregated: tune_gamma picks from a discrete
+    # grid (0.05 or 0.005 across these seeds), so a mean (0.023) is a value no run
+    # ever used. The per-seed CSV carries the real selections.
     table = (
         per_seed.groupby(["target_model", "method"], sort=False)
         .agg(
             coverage=("coverage", "mean"),
             cov_std=("coverage", "std"),
-            ci_lo=("ci_lo", "mean"),
-            ci_hi=("ci_hi", "mean"),
             normalized_width=("normalized_width", "mean"),
             frac_unbounded=("frac_unbounded", "mean"),
             n_test=("n_test", "first"),
-            gamma=("gamma", "mean"),
         )
         .reset_index()
     )
+    # Aggregate band: POOL the per-seed bootstrap draws, then take quantiles —
+    # carries both within-seed (rollout resampling) and between-seed (calibration
+    # split) variance. Averaging per-seed CI endpoints (the pre-2026-08-01
+    # behavior) understated the band by up to 10x when some seeds sat at 1.0.
+    pooled = per_seed.groupby(["target_model", "method"], sort=False)["_draws"].apply(
+        lambda s: pooled_bootstrap_ci(list(s))
+    )
+    assert len(pooled) == len(table)
+    table["ci_lo"] = [c[0] for c in pooled]
+    table["ci_hi"] = [c[1] for c in pooled]
 
     os.makedirs("tables", exist_ok=True)
     os.makedirs("figures", exist_ok=True)
@@ -152,7 +168,8 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     ax.set_ylim(0, 1.16)
     ax.set_ylabel("marginal coverage on target stream")
     title = ("Model-swap transfer (SWE-bench): guard calibrated on claude-opus-4.7, "
-             f"deployed on other models\n({len(seeds)} seeds, cluster-bootstrap CI)")
+             f"deployed on other models\n({len(seeds)} seeds; band = 90% pooled "
+             "seed×rollout cluster bootstrap)")
     if any_unbounded:
         title += f"\n{UNBOUNDED_NOTE}"
     ax.set_title(title, fontsize=10.5)

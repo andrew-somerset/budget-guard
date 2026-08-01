@@ -1,8 +1,11 @@
 name: tests
 
 on:
+  # Every branch, not just main/development. A feature branch that never triggers CI is
+  # a branch whose container build and lockfile can rot unnoticed until merge time —
+  # which is exactly what happened to repro-container on 2026-08-01.
   push:
-    branches: [main, development]
+    branches: ['**']
   pull_request:
 
 jobs:

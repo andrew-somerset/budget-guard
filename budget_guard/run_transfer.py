@@ -9,8 +9,13 @@ completed run reveals its label, and the online methods consume them.
 Frozen split-CQR (never updates) vs ACI-CQR, SPCI, and parameter-free DtACI
 (adapt online, rollout-safe label revelation) on each target model's stream.
 
+Five seeds with rollout cluster-bootstrap CIs, matching run_transfer_env and the
+project's >=5-seed rule for headline tables (this script was single-seed until
+2026-08-01, the only headline transfer figure without a variability estimate).
+
 Usage: python -m budget_guard.run_transfer
-Writes figures/transfer_swebench.png and tables/transfer_swebench.csv.
+Writes figures/transfer_swebench.png, tables/transfer_swebench.csv and
+tables/transfer_swebench_per_seed.csv.
 """
 from __future__ import annotations
 
@@ -23,7 +28,12 @@ import pandas as pd
 from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, spci, tune_gamma
 from .extract import flatten_to_samples, load_rollouts, samples_to_dataframe
 from .features import build_xy
-from .metrics import frac_unbounded, marginal_coverage, normalized_width
+from .metrics import (
+    frac_unbounded,
+    marginal_coverage,
+    normalized_width,
+    rollout_bootstrap_ci,
+)
 from .plotting import UNBOUNDED_NOTE, group_bar_width, mark_unbounded, nominal_line
 from .split import group_split
 
@@ -51,36 +61,61 @@ def target_runs() -> dict[str, str]:
     return out
 
 
-def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
+def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA):
     src = _load(SOURCE)
     X, y, groups = build_xy(src)
-    masks = group_split(src, fracs=(0.7, 0.3, 0.0), seed=seed)
-    tr, ca = masks["train"], masks["cal"]
-    Xtr, ytr, Xca, yca = X[tr], y[tr], X[ca], y[ca]
-    gamma = tune_gamma(Xtr, ytr, Xca, yca, groups[ca], alpha=alpha, seed=seed)
+    # Target streams do not depend on the seed (only the source train/cal split does),
+    # so load and featurize each one once rather than per seed.
+    tgt_data = {model: build_xy(_load(run_dir)) for model, run_dir in target_runs().items()}
 
     rows = []
-    for model, run_dir in target_runs().items():
-        tgt = _load(run_dir)
-        Xte, yte, gte = build_xy(tgt)
-        for name, (lo, hi) in {
-            "split-CQR (frozen)": cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2],
-            "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2],
-            "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
-            "DtACI": dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
-        }.items():
-            rows.append(
-                {
-                    "target_model": model,
-                    "method": name,
-                    "coverage": marginal_coverage(yte, lo, hi),
-                    "normalized_width": normalized_width(yte, lo, hi, agg="median"),
-                    "frac_unbounded": frac_unbounded(hi),
-                    "n_test": len(yte),
-                    "gamma": gamma if name == "ACI-CQR" else np.nan,
-                }
-            )
-    table = pd.DataFrame(rows)
+    for seed in seeds:
+        masks = group_split(src, fracs=(0.7, 0.3, 0.0), seed=seed)
+        tr, ca = masks["train"], masks["cal"]
+        Xtr, ytr, Xca, yca = X[tr], y[tr], X[ca], y[ca]
+        gamma = tune_gamma(Xtr, ytr, Xca, yca, groups[ca], alpha=alpha, seed=seed)
+
+        for model, (Xte, yte, gte) in tgt_data.items():
+            for name, (lo, hi) in {
+                "split-CQR (frozen)": cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2],
+                "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2],
+                "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
+                "DtACI": dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
+            }.items():
+                ci = rollout_bootstrap_ci(yte, lo, hi, gte, seed=seed)
+                rows.append(
+                    {
+                        "target_model": model,
+                        "method": name,
+                        "seed": seed,
+                        "coverage": marginal_coverage(yte, lo, hi),
+                        "ci_lo": ci[0],
+                        "ci_hi": ci[1],
+                        "normalized_width": normalized_width(yte, lo, hi, agg="median"),
+                        "frac_unbounded": frac_unbounded(hi),
+                        "n_test": len(yte),
+                        "gamma": gamma if name == "ACI-CQR" else np.nan,
+                    }
+                )
+    os.makedirs("tables", exist_ok=True)
+    os.makedirs("figures", exist_ok=True)
+
+    per_seed = pd.DataFrame(rows)
+    per_seed.to_csv("tables/transfer_swebench_per_seed.csv", index=False)
+    table = (
+        per_seed.groupby(["target_model", "method"], sort=False)
+        .agg(
+            coverage=("coverage", "mean"),
+            cov_std=("coverage", "std"),
+            ci_lo=("ci_lo", "mean"),
+            ci_hi=("ci_hi", "mean"),
+            normalized_width=("normalized_width", "mean"),
+            frac_unbounded=("frac_unbounded", "mean"),
+            n_test=("n_test", "first"),
+            gamma=("gamma", "mean"),
+        )
+        .reset_index()
+    )
 
     os.makedirs("tables", exist_ok=True)
     os.makedirs("figures", exist_ok=True)
@@ -100,21 +135,24 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     fig, ax = plt.subplots(figsize=(10, 5.0), constrained_layout=True)
     any_unbounded = False
     for i, method in enumerate(methods):
-        sel = [table[(table["target_model"] == m) & (table["method"] == method)] for m in models]
-        vals = [s["coverage"].item() for s in sel]
-        fracs = [float(s["frac_unbounded"].item()) for s in sel]
+        sel = [table[(table["target_model"] == m) & (table["method"] == method)].iloc[0] for m in models]
+        vals = [float(s["coverage"]) for s in sel]
+        fracs = [float(s["frac_unbounded"]) for s in sel]
+        yerr = np.clip(np.array([[v - float(s["ci_lo"]) for v, s in zip(vals, sel)],
+                                 [float(s["ci_hi"]) - v for v, s in zip(vals, sel)]]), 0, None)
         offset = (i - (len(methods) - 1) / 2) * width
-        bars = ax.bar(xs + offset, vals, width=width * 0.86, color=colors[method], label=method)
+        bars = ax.bar(xs + offset, vals, width=width * 0.86, color=colors[method], label=method,
+                      yerr=yerr, capsize=3, error_kw={"lw": 1, "alpha": 0.7})
         any_unbounded |= mark_unbounded(ax, bars, fracs, vals)
-        for bar, v in zip(bars, vals):
-            ax.text(bar.get_x() + bar.get_width() / 2, v + 0.014, f"{v:.2f}",
+        for bar, v, s in zip(bars, vals, sel):
+            ax.text(bar.get_x() + bar.get_width() / 2, float(s["ci_hi"]) + 0.02, f"{v:.2f}",
                     ha="center", va="bottom", fontsize=7.5)
     nominal_line(ax, alpha)
     ax.set_xticks(xs, models)
     ax.set_ylim(0, 1.16)
     ax.set_ylabel("marginal coverage on target stream")
     title = ("Model-swap transfer (SWE-bench): guard calibrated on claude-opus-4.7, "
-             "deployed on other models")
+             f"deployed on other models\n({len(seeds)} seeds, cluster-bootstrap CI)")
     if any_unbounded:
         title += f"\n{UNBOUNDED_NOTE}"
     ax.set_title(title, fontsize=10.5)
@@ -124,7 +162,8 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     fig.savefig("figures/transfer_swebench.png", dpi=200, bbox_inches="tight")
 
     print(table.to_string(index=False))
-    print("\nwrote figures/transfer_swebench.png, tables/transfer_swebench.csv")
+    print("\nwrote figures/transfer_swebench.png, tables/transfer_swebench.csv, "
+          "tables/transfer_swebench_per_seed.csv")
     return table
 
 

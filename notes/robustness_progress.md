@@ -795,3 +795,54 @@ yet for the PI-scoped methods increment: windows sized in completed-rollout coun
 CAL only. Kill the "one afternoon of DtACI fixes it" objection with this table.
 
 Reproduce: `python -m budget_guard.run_transfer`; `python -m budget_guard.run_transfer_env`.
+
+### 2026-08-01 — run_transfer hardened to 5 seeds (HEADLINE NUMBERS CHANGE; reframing required)
+
+Status: **Implemented + re-run.** `run_transfer` (model-swap transfer) was the last
+headline table still single-seed — the project's own >=5-seed rule (item 4) had never been
+applied to it, and it was the only transfer figure without a cluster CI. Now 5 seeds +
+rollout cluster-bootstrap CIs, matching `run_transfer_env`. Also writes
+`tables/transfer_swebench_per_seed.csv`.
+
+**Validation first:** seed 0 in the new per-seed table reproduces the previous single-seed
+run EXACTLY (max |delta| = 0.0 across all 16 model x method rows). The changes below come
+purely from averaging over seeds, not from a code change.
+
+**Corrected numbers (seed 0 -> 5-seed mean):**
+- split-CQR (frozen): 0.38-0.76 -> **0.64-0.89** (sonnet4.6 0.716, gemini3.1 0.717,
+  gpt5.2instant 0.891, qwen3-235b 0.643)
+- SPCI: 0.66-0.89 -> **0.66-0.89** (0.717 / 0.657 / 0.890 / 0.660) — essentially unmoved
+- DtACI: 0.577-0.841 -> **0.412-0.833** (worse; qwen3-235b 0.577 -> 0.412)
+- ACI-CQR: 0.83-0.90 -> 0.867-0.913, still at 22-61% unbounded
+
+**The finding — seed 0 was near frozen's worst case on all four targets.** Frozen's
+coverage depends entirely on which source rollouts land in the 70/30 calibration split,
+and with ~66 source rollouts that draw is high-variance:
+
+| method | mean cov_std | per-model spread over 5 seeds |
+|---|---|---|
+| split-CQR (frozen) | **0.175** | 0.251 / 0.401 / 0.302 / 0.442 |
+| SPCI | **0.009** | 0.026 / 0.015 / 0.018 / 0.031 |
+
+Seed 0 gave frozen 0.383 on qwen3-235b — exactly its five-seed minimum — and near-minimum
+values on the other three. The old "frozen collapses to 0.38" claim was a lottery ticket.
+
+**Honest reframing required (paper lead, PI decision).** For MODEL-SWAP transfer, "frozen
+conformal collapses while online self-heals" is no longer supported on mean coverage:
+frozen 0.64-0.89 vs SPCI 0.66-0.89 is a tie in level. What survives, and is arguably the
+better claim, is a RELIABILITY result: online adaptation makes coverage predictable
+(cov_std ~0.01) where a frozen calibration is a draw-dependent lottery (cov_std ~0.18,
+spread up to 0.44). A practitioner shipping a frozen guard cannot know which draw they
+got; SPCI gives the same coverage regardless. That is a variance claim, not a level claim,
+and the figure/abstract should say so.
+
+**Unaffected:** the CROSS-ENV result (`run_transfer_env`) was already 5-seed and stands
+unchanged — frozen 0.103 vs SPCI 0.798 at 0% unbounded, with frozen cov_std 0.025. The
+collapse claim is real there; it is specifically the model-swap experiment that softens.
+The Warehouse adaptive-joint result (0.86-0.88) is also unaffected.
+
+**Caught by:** `scripts/check_headline_numbers.py` (added earlier the same day) failed 2
+of 9 claims immediately after the re-run, which is what surfaced the size of the change.
+Claims updated, plus two new ones pinning the variance gap that the reframing now rests on.
+
+Reproduce: `python -m budget_guard.run_transfer`; `python scripts/check_headline_numbers.py`.

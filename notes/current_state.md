@@ -59,7 +59,12 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   coverages sitting directly under a correction banner, plus a stale test count and data
   size). Prose cannot be diffed, so it rots silently; this makes it fail loudly.
 - **Full breadth + model transfer:** all 19 token-budget model×environment runs now execute;
-  SWE-bench model swap confirms frozen 0.38–0.76 vs SPCI 0.66–0.89 at 0% unbounded.
+  SWE-bench model swap (**5 seeds since 2026-08-01**, was single-seed): frozen 0.64–0.89
+  vs SPCI 0.66–0.89, both at 0% unbounded — i.e. comparable MEAN coverage. The separation
+  is in variance, not level: frozen cov_std ≈ 0.18 (per-model spread up to 0.44 across
+  five seeds) vs SPCI ≈ 0.01. See the 2026-08-01 entry in robustness_progress.md; the
+  previously quoted "frozen 0.38–0.76" was seed 0, which sat near frozen's minimum on
+  all four targets.
 - **External-budget transfer + adaptive joint method (development):** Opus 4.7 → four
   Warehouse models initially gives frozen Bonferroni joint coverage 0.66–0.79. A new
   rollout-safe recent-error window updates all three resource margins plus their shared
@@ -102,7 +107,8 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   is a data/resource task; do not relabel the source-text smoke test as agent evidence.
 3. **Write-up** — 4-pager led by the transfer figure; add the internal-vs-external contrast
   (token shift recovers to 0.66–0.89 cross-model and 0.80 cross-env, both at 0%
-  unbounded; Warehouse joint shift to 0.86–0.88 overall);
+  unbounded; Warehouse joint shift to 0.86–0.88 overall) — but lead the model-swap
+  result with the VARIANCE claim, not a level claim (see 2026-08-01 entry);
   methods section around censored rungs 1–3 + rollout-safe adaptive joint calibration;
   related-work table + unresolved citations.
 4. **Artifact release** — replace the placeholder LICENSE holder, prepare an anonymized

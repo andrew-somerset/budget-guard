@@ -24,10 +24,15 @@ import pandas as pd
 
 TABLES = Path(__file__).resolve().parent.parent / "tables"
 
-# Absolute tolerance for a point claim. Loose enough to survive last-bit cross-platform
-# noise (the container-vs-host comparison differed by 1 ULP, ~2e-16), tight enough that a
-# real methodological change cannot slip through.
+# Absolute tolerance for a point claim quoted to 4 decimals. Loose enough to survive
+# last-bit cross-platform noise (the container-vs-host comparison differed by 1 ULP,
+# ~2e-16), tight enough that a real methodological change cannot slip through.
 TOL = 5e-4
+
+# Range claims are quoted in prose rounded to 2 decimals ("SPCI 0.66-0.89"), so a value
+# is consistent with the claim if it rounds to it: half of the last quoted digit.
+# Without this the check fails on correct prose, which would train you to ignore it.
+RANGE_TOL = 5e-3
 
 # Each claim: where it is asserted in prose, which table cell backs it, and what it says.
 #   kind="approx" -> the single selected row's column must equal `value` within TOL
@@ -75,13 +80,35 @@ CLAIMS = [
         "hi": 0.89,
     },
     {
-        "quoted_in": "current_state.md — 'model swap confirms frozen 0.38-0.76'",
+        "quoted_in": "current_state.md — 'model swap: frozen 0.64-0.89 (5-seed mean)'",
         "table": "transfer_swebench.csv",
         "where": {"method": "split-CQR (frozen)"},
         "column": "coverage",
         "kind": "range",
-        "lo": 0.38,
-        "hi": 0.76,
+        "lo": 0.64,
+        "hi": 0.89,
+    },
+    {
+        # The load-bearing claim for model-swap transfer after the 2026-08-01 five-seed
+        # hardening: frozen and SPCI have comparable MEAN coverage, but frozen's is a
+        # lottery on the calibration split while SPCI's is stable. Guards the variance
+        # gap, which is what the claim now rests on.
+        "quoted_in": "current_state.md — 'frozen cov_std ~0.18 vs SPCI ~0.01 on model swap'",
+        "table": "transfer_swebench.csv",
+        "where": {"method": "SPCI"},
+        "column": "cov_std",
+        "kind": "range",
+        "lo": 0.0,
+        "hi": 0.02,
+    },
+    {
+        "quoted_in": "current_state.md — 'frozen cov_std ~0.18 vs SPCI ~0.01 on model swap'",
+        "table": "transfer_swebench.csv",
+        "where": {"method": "split-CQR (frozen)"},
+        "column": "cov_std",
+        "kind": "range",
+        "lo": 0.10,
+        "hi": 0.25,
     },
     {
         "quoted_in": "robustness_progress.md 2026-07-21 — 'sokoban ~unchanged (SPCI 0.916)'",
@@ -146,7 +173,7 @@ def check(claim: dict) -> tuple[bool, str]:
 
     lo, hi = claim["lo"], claim["hi"]
     actual_lo, actual_hi = float(values.min()), float(values.max())
-    ok = actual_lo >= lo - TOL and actual_hi <= hi + TOL
+    ok = actual_lo >= lo - RANGE_TOL and actual_hi <= hi + RANGE_TOL
     return ok, (
         f"{'PASS' if ok else 'FAIL'}  {claim['table']}[{claim['column']}] "
         f"spans {actual_lo:.4f}-{actual_hi:.4f}, notes claim {lo:.2f}-{hi:.2f}"

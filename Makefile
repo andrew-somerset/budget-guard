@@ -16,10 +16,10 @@ EXCLUDE_NEWER := 2026-08-01T00:00:00Z
 # than failing. Worth knowing, because it is a quiet failure mode.
 #
 # Inputs are mounted read-only so a run cannot mutate the data it was calibrated on.
-# BAGEN lives OUTSIDE the repo: tests/test_extract.py and the _smoke fixture resolve
-# <repo>/../BAGEN/_smoke, so the sibling directory has to be mounted at /BAGEN for the
-# container's /app/../BAGEN to resolve. (That out-of-repo dependency is worth fixing at
-# some point — it means a fresh clone is not self-contained.)
+# BAGEN lives OUTSIDE the repo, so the sibling checkout is mounted at /BAGEN (matching
+# BAGEN_DIR in the Dockerfile). This is an optimization, not a requirement: since
+# 2026-08-01 the smoke fixture is also vendored at tests/fixtures/, so the suite passes
+# without it — see budget_guard/extract.py::_default_smoke_path for the resolution order.
 IN     := -v "$(CURDIR)/data:/app/data:ro" -v "$(CURDIR)/../BAGEN:/BAGEN:ro"
 OUT    := -v "$(CURDIR)/figures:/app/figures" -v "$(CURDIR)/tables:/app/tables"
 MOUNTS := $(IN) $(OUT)
@@ -27,7 +27,7 @@ MOUNTS := $(IN) $(OUT)
 # fetch must write into data/, so it gets a writable mount instead of the read-only one.
 MOUNTS_FETCH := -v "$(CURDIR)/data:/app/data"
 
-.PHONY: help lock build test fetch repro shell digest check-numbers
+.PHONY: help lock build test fetch repro repro-all shell digest check-numbers
 
 help:
 	@echo "make lock    regenerate requirements.lock.txt (needs uv, runs on host)"
@@ -35,6 +35,7 @@ help:
 	@echo "make test    run the full test suite inside the container"
 	@echo "make fetch   download the revision-pinned BAGEN subset into ./data"
 	@echo "make repro   regenerate all figures/ and tables/ inside the container"
+	@echo "make repro-all  ...plus every remaining reported table (slow)"
 	@echo "make check-numbers  verify notes/ headline numbers against tables/"
 	@echo "make shell   interactive shell inside the container"
 	@echo "make digest  print the current upstream digest of the base image tag"
@@ -63,6 +64,13 @@ fetch: build
 # run that moves a headline number cannot pass unnoticed.
 repro: build
 	docker run --rm --platform=linux/amd64 $(MOUNTS) $(IMAGE) python -m budget_guard.run_final
+	$(MAKE) check-numbers
+
+# Everything `repro` covers, plus every remaining reported table (external-budget
+# transfer, censored rungs, conditional coverage, per-env economics, the loop layer).
+# Substantially slower — the loop stress sweep is 4 windows x 10 order seeds.
+repro-all: build
+	docker run --rm --platform=linux/amd64 $(MOUNTS) $(IMAGE) python -m budget_guard.run_final --full
 	$(MAKE) check-numbers
 
 # Verifies headline numbers quoted in notes/ against the generated tables. Runs on the

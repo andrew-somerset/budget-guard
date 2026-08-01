@@ -14,7 +14,13 @@ swebench origin trajectories); skipped with a printed notice otherwise:
 - transfer_swebench.png        (model-swap transfer)
 - allruns.png                  (breadth across every model x env run)
 
-Usage: python -m budget_guard.run_final
+With --full, additionally regenerates every remaining reported table: external-budget
+transfer, censored rungs, conditional coverage, per-env economics / cost-of-pass /
+gap / label-efficiency, and the three loop-layer drivers. Split out because the loop
+stress sweep alone is 4 windows x 10 order seeds and dominates the runtime — the
+default set is what the write-up's figures come from.
+
+Usage: python -m budget_guard.run_final [--full]
 """
 from __future__ import annotations
 
@@ -23,12 +29,22 @@ import shutil
 
 from . import (
     run_allruns,
+    run_censored,
+    run_conditional,
+    run_costofpass,
     run_coverage,
+    run_economic,
     run_economic_warehouse,
+    run_gap,
     run_gated,
+    run_label_efficiency,
+    run_loop_closed_loop,
+    run_loop_stress,
+    run_loop_validation,
     run_multiresource,
     run_transfer,
     run_transfer_env,
+    run_transfer_warehouse,
 )
 
 OUTDIR = "figures/final"
@@ -55,7 +71,32 @@ def _has_multimodel_data() -> bool:
         return False
 
 
-def main() -> None:
+def _remaining_tables() -> None:
+    """Every reported table not covered by the headline set above.
+
+    Kept behind --full: these back claims in notes/ and the methods section but do not
+    produce write-up figures, and the loop stress sweep dominates total runtime.
+    """
+    print("\n--- external-budget transfer + methods tables ---")
+    run_transfer_warehouse.main(seeds=SEEDS)     # transfer_warehouse{,_per_seed}
+    run_censored.main(seeds=SEEDS)               # censored_upper
+    run_conditional.main(seeds=SEEDS)            # conditional_coverage
+
+    print("\n--- per-env economics / diagnostics ---")
+    for env in ("sokoban", "swebench"):
+        run_economic.run(env, seeds=SEEDS)       # abort_frontier_<env>
+        run_costofpass.run(env, seeds=SEEDS)     # cost_of_pass_<env>
+    for env in ("sokoban", "searchr1", "swebench"):
+        run_gap.run(env)                         # gap_<env> (single-seed diagnostic)
+    run_label_efficiency.run("sokoban", seeds=SEEDS)  # label_efficiency_sokoban
+
+    print("\n--- loop layer ---")
+    run_loop_validation.main(resume=True)        # loop_validation{,_per_seed}
+    run_loop_stress.main(resume=True)            # loop_stress{,_raw}
+    run_loop_closed_loop.main(seeds=SEEDS)       # loop_closed_loop{,_per_seed}
+
+
+def main(full: bool = False) -> None:
     run_multiresource.main(seeds=SEEDS, outdir=OUTDIR)       # C2 joint (like-for-like)
     run_economic_warehouse.main(seeds=SEEDS, outdir=OUTDIR)  # C3 abort frontier
     run_gated.main(seeds=SEEDS, outdir=OUTDIR)               # selective frontier (methods)
@@ -65,15 +106,20 @@ def main() -> None:
     _collect("coverage_main.png", "transfer_env.png")
 
     if _has_multimodel_data():
-        run_transfer.main()                                  # model-swap transfer
+        run_transfer.main(seeds=SEEDS)                       # model-swap transfer
         run_allruns.main()                                    # breadth, all runs
         _collect("transfer_swebench.png", "allruns.png")
     else:
         print("\nSKIPPED transfer_swebench.png + allruns.png — the full multi-model BAGEN "
               "set is not on this machine (see scripts/fetch_bagen.py).")
 
+    if full:
+        _remaining_tables()
+
     print(f"\nfinal figures written to {OUTDIR}/")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    main(full="--full" in sys.argv[1:])

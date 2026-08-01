@@ -268,10 +268,32 @@ def samples_to_dataframe(samples: list[PrefixSample]):
 
 
 def _default_smoke_path() -> str:
-    bagen_dir = os.environ.get("BAGEN_DIR") or os.path.join(
-        os.path.dirname(__file__), "..", "..", "BAGEN"
+    """Locate the sokoban smoke sample.
+
+    A real BAGEN checkout always wins ($BAGEN_DIR, then a sibling ../BAGEN). The vendored
+    copy under tests/fixtures/ is the last resort, so that a fresh clone with no BAGEN
+    alongside it can still run the extractor invariant tests instead of skipping them.
+    """
+    candidates = []
+    if os.environ.get("BAGEN_DIR"):
+        candidates.append(
+            os.path.join(os.environ["BAGEN_DIR"], "_smoke", "sokoban_dialogues.json")
+        )
+    here = os.path.dirname(__file__)
+    candidates.append(
+        os.path.join(here, "..", "..", "BAGEN", "_smoke", "sokoban_dialogues.json")
     )
-    return os.path.join(bagen_dir, "_smoke", "sokoban_dialogues.json")
+    vendored = os.path.join(
+        here, "..", "tests", "fixtures", "bagen_smoke_sokoban_dialogues.json"
+    )
+    candidates.append(vendored)
+
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    # Nothing found: return the first candidate so the caller's error names the location
+    # the user most likely intended.
+    return candidates[0]
 
 
 def _self_check(df) -> None:

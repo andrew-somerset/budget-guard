@@ -97,7 +97,7 @@ CLAIMS = [
         "table": "transfer_swebench.csv",
         "where": {"method": "SPCI"},
         "column": "cov_std",
-        "kind": "range",
+        "kind": "within",
         "lo": 0.0,
         "hi": 0.02,
     },
@@ -106,7 +106,7 @@ CLAIMS = [
         "table": "transfer_swebench.csv",
         "where": {"method": "split-CQR (frozen)"},
         "column": "cov_std",
-        "kind": "range",
+        "kind": "within",
         "lo": 0.10,
         "hi": 0.25,
     },
@@ -173,7 +173,16 @@ def check(claim: dict) -> tuple[bool, str]:
 
     lo, hi = claim["lo"], claim["hi"]
     actual_lo, actual_hi = float(values.min()), float(values.max())
-    ok = actual_lo >= lo - RANGE_TOL and actual_hi <= hi + RANGE_TOL
+    if claim["kind"] == "within":
+        # Bound-style claim ("cov_std ~0.01", encoded as a permissive interval):
+        # every value must lie inside; the span need not touch the endpoints.
+        ok = actual_lo >= lo - RANGE_TOL and actual_hi <= hi + RANGE_TOL
+    else:
+        # Span-style claim (prose quotes the range itself, e.g. "SPCI 0.66-0.89"):
+        # two-sided — the ENDPOINTS must match. Containment-only checking passes
+        # when a regenerated table's spread collapses (actual 0.70-0.71 against a
+        # claimed 0.66-0.89), leaving prose that overstates the variability.
+        ok = abs(actual_lo - lo) <= RANGE_TOL and abs(actual_hi - hi) <= RANGE_TOL
     return ok, (
         f"{'PASS' if ok else 'FAIL'}  {claim['table']}[{claim['column']}] "
         f"spans {actual_lo:.4f}-{actual_hi:.4f}, notes claim {lo:.2f}-{hi:.2f}"

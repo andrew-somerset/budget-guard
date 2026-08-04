@@ -32,6 +32,7 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4),
     budget_grid = (2, 3, 5, 8, 12, 16, 24, 32)
 
     samples: dict[int, list[float]] = {}
+    inf_fracs: dict[int, list[float]] = {}
     for seed in seeds:
         masks = group_split(df, fracs=(0.5, 0.25, 0.25), seed=seed)
         tr, ca, te = masks["train"], masks["cal"], masks["test"]
@@ -52,6 +53,10 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4),
                 lo = np.maximum(qlo_te - qhat, 0.0)
                 hi = qhi_te + qhat
                 samples.setdefault(m, []).append(float(np.mean((lo <= yte) & (yte <= hi))))
+                # At tiny m the finite-sample level exceeds 1 and qhat = inf: the
+                # curve's "fail-safe ~1.0" points are unbounded intervals counted
+                # as covered. Record the fraction so the table/figure disclose it.
+                inf_fracs.setdefault(m, []).append(float(not np.isfinite(qhat)))
 
     budgets = sorted(samples)
     table = pd.DataFrame([
@@ -59,6 +64,7 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4),
          "coverage_mean": float(np.mean(samples[m])),
          "coverage_p10": float(np.quantile(samples[m], 0.10)),
          "coverage_p90": float(np.quantile(samples[m], 0.90)),
+         "frac_draws_unbounded": float(np.mean(inf_fracs[m])),
          "n_draws": len(samples[m])}
         for m in budgets
     ])

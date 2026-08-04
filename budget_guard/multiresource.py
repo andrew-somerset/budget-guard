@@ -22,7 +22,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from .conformal import DEFAULT_ALPHA, cqr_split
+from .conformal import DEFAULT_ALPHA, cqr_split, _require_contiguous_groups
 
 RESOURCES = ("time_weeks", "warehouse_item_weeks", "cost_usd")
 
@@ -56,8 +56,13 @@ def load_warehouse(path: str, keep_censored: bool = False) -> pd.DataFrame:
     ``y_*`` recovered from ``actual_total_* − spent_so_far``. That recoverability
     is what makes Warehouse the mask-and-measure testbed for censored conformal.
 
-    Spend-so-far: exact for time (= completed_weeks); cost/warehouse are
-    interpolated as completed_weeks/total_weeks × total (stated approximation).
+    Spend-so-far: exact for time (= completed_weeks); for cost/warehouse it is
+    total − actual_remaining (exact) on uncensored rows and the
+    completed_weeks/total_weeks × total interpolation on censored rows — which
+    also means censored rows' RECOVERED y_* labels carry that interpolation's
+    error (only time_weeks is exact there). Downstream "measured coverage on
+    censored runs" for cost/warehouse is therefore coverage against an
+    approximate label, not ground truth.
     """
     with open(path, "r", encoding="utf-8") as handle:
         payload = json.load(handle)
@@ -79,19 +84,34 @@ def load_warehouse(path: str, keep_censored: bool = False) -> pd.DataFrame:
         frac = (gt["completed_weeks"] / total_weeks) if total_weeks else np.nan
         for res in RESOURCES:
             total = gt.get(f"actual_total_{res}")
+            remaining = gt.get(f"actual_remaining_{res}")
             if res == "time_weeks":
                 spent = gt["completed_weeks"]
+            elif remaining is not None and total is not None:
+                # Exact spend-so-far from the recorded remaining. The old
+                # week-proportional interpolation carried median 26.5% / 12.2%
+                # relative error (item-weeks / cost) on uncensored rows and fed
+                # every spent_-based trigger and loop label with it.
+                spent = float(total) - float(remaining)
             else:
                 spent = frac * total if total is not None else np.nan
             row[f"total_{res}"] = total
             row[f"spent_{res}"] = spent
-            remaining = gt.get(f"actual_remaining_{res}")
             if remaining is None and total is not None and np.isfinite(spent):
-                remaining = max(0.0, total - spent)  # recovered truth for censored rows
+                # Recovered label for censored rows: total - interpolated spend.
+                # NOT exact (the interpolation's error applies) — see the module
+                # docstring; only time_weeks is exact here.
+                remaining = max(0.0, total - spent)
             row[f"y_{res}"] = remaining
         metrics = record.get("metrics") or {}
         for res in RESOURCES:
-            row[f"agent_cov_{res}"] = bool(metrics.get(_AGENT_COV_KEY[res]))
+            # Preserve None (agent declared the task impossible and emitted no
+            # interval). bool(None) -> False silently converted "undefined" into
+            # "failed", deflating the agent baseline 10-20 points vs BAGEN's own
+            # summary convention, which EXCLUDES these rows. Consumers must
+            # average over non-null flags only.
+            flag = metrics.get(_AGENT_COV_KEY[res])
+            row[f"agent_cov_{res}"] = bool(flag) if flag is not None else None
         rows.append(row)
     df = pd.DataFrame(rows)
     if not keep_censored:
@@ -183,6 +203,10 @@ def adaptive_joint_qhats(
         raise ValueError("stream_groups must have one value per stream score row")
     if window < 1:
         raise ValueError("window must be positive")
+    # Same temporal-leak guard as conformal.aci_cqr/spci/dtaci: the rollout-atomic
+    # update below is only atomic when each rollout's rows are contiguous — an
+    # interleaved stream would let later rollouts' labels reach earlier predictions.
+    _require_contiguous_groups(groups)
 
     recent = deque((row.copy() for row in cal[-window:]), maxlen=window)
     qhat_path = np.empty_like(stream, dtype=float)

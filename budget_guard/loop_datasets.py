@@ -1,6 +1,7 @@
 """Adapters from existing research tables into the generic loop event schema."""
 from __future__ import annotations
 
+import math
 from pathlib import Path
 import re
 from typing import Any, Mapping
@@ -51,10 +52,21 @@ def warehouse_traces_from_dataframe(
 ) -> list[RunTrace]:
     """Convert ``load_warehouse(..., keep_censored=True)`` output to generic traces.
 
-    Time spend is exact. Warehouse and cost spend are the same week-proportional
-    interpolation already documented by ``load_warehouse``; this converter does not add
-    a new approximation. A final terminal step bridges the last replayed prefix to each
-    recorded realized total.
+    Spend-so-far per prefix is derived from the RECORDED remaining as
+    ``total − y`` whenever both are present, so downstream loop targets
+    (``total − cumulative spend``) equal the exact BAGEN ground-truth labels the
+    rest of the repo evaluates against. For censored rows ``load_warehouse``
+    recovered ``y`` from the week-proportional interpolation, so ``total − y``
+    reduces to that documented interpolation — no new approximation either way.
+
+    (Before 2026-08-02 this used the interpolated ``spent_*`` columns for ALL
+    rows, which silently replaced the exact uncensored labels with a
+    uniform-spend-rate pseudo-label — median 26.5% off on item-weeks, 12.2% on
+    cost for the opus run — making loop-validation warehouse coverage
+    incomparable to the run_transfer_warehouse tables.)
+
+    A final terminal step bridges the last replayed prefix to each recorded
+    realized total.
     """
     traces: list[RunTrace] = []
     order_cols = ["rollout_index", "completed_turns"]
@@ -71,7 +83,17 @@ def warehouse_traces_from_dataframe(
         for _, row in group.iterrows():
             usage = {}
             for resource in RESOURCES:
-                spent = float(row[f"spent_{resource}"])
+                total = row.get(f"total_{resource}")
+                y = row.get(f"y_{resource}")
+                if (
+                    total is not None
+                    and y is not None
+                    and math.isfinite(float(total))
+                    and math.isfinite(float(y))
+                ):
+                    spent = float(total) - float(y)  # exact recorded spend-so-far
+                else:
+                    spent = float(row[f"spent_{resource}"])  # documented interpolation
                 delta = spent - previous[resource]
                 if delta < -1e-8:
                     raise ValueError(f"{resource} cumulative spend decreased")

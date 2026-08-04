@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from .data import ENVS, load_env
+from ._checkpoint import resume_allowed, write_fingerprint
 from .loop_datasets import (
     text_file_traces,
     token_traces_from_dataframe,
@@ -78,6 +79,10 @@ def _write_tables(rows: list[dict]) -> pd.DataFrame:
     numeric = [
         column for column in per_seed.columns
         if column not in {"scenario", "method", "seed"}
+        # Per-seed bootstrap CI endpoints are real per-seed CIs, but their cross-
+        # seed MEAN is not a CI at any level (audit 2026-08-01). They stay in the
+        # per-seed CSV; the aggregate table reports only point statistics.
+        and not column.endswith(("_ci_lo", "_ci_hi"))
     ]
     table = (
         per_seed.groupby(["scenario", "method"], sort=False)[numeric]
@@ -86,16 +91,27 @@ def _write_tables(rows: list[dict]) -> pd.DataFrame:
     )
     os.makedirs("tables", exist_ok=True)
     per_seed.to_csv("tables/loop_validation_per_seed.csv", index=False)
+    write_fingerprint("tables/loop_validation_per_seed.csv")
     table.to_csv("tables/loop_validation.csv", index=False)
     return table
 
 
 def _text_paths(seed: int = 0, max_paths: int = 900) -> list[Path]:
     root = Path(__file__).resolve().parents[1]
+    # Support both venv layouts: Windows (.venv/Lib/site-packages) and POSIX
+    # (.venv/lib/pythonX.Y/site-packages). The original Windows-only glob made the
+    # corpus silently collapse to ~44 repo files on macOS/Linux/the container.
+    site_dirs = list((root / ".venv").glob("Lib/site-packages")) + list(
+        (root / ".venv").glob("lib/python*/site-packages")
+    )
+    if not site_dirs:
+        import sysconfig
+
+        site_dirs = [Path(sysconfig.get_paths()["purelib"])]
     paths = sorted(
         set((root / "budget_guard").glob("*.py"))
         | set((root / "notes").glob("*.md"))
-        | set((root / ".venv" / "Lib" / "site-packages").glob("**/*.py"))
+        | {q for d in site_dirs for q in d.glob("**/*.py")}
     )
     rng = np.random.default_rng(seed)
     if len(paths) > max_paths:
@@ -139,7 +155,10 @@ def main(
     checkpoint = Path("tables/loop_validation_per_seed.csv")
     rows: list[dict] = []
     completed_seeds: set[int] = set()
-    if resume and checkpoint.exists():
+    # resume_allowed refuses checkpoints written by different source code — a stale
+    # complete checkpoint would otherwise skip every seed and re-serialize pre-fix
+    # rows with fresh mtimes (which happened on 2026-08-02; see _checkpoint.py).
+    if resume and resume_allowed(str(checkpoint)):
         prior = pd.read_csv(checkpoint)
         rows = prior.to_dict("records")
         completed_seeds = {int(seed) for seed in prior["seed"].unique()}

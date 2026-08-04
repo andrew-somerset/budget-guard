@@ -66,7 +66,17 @@ def _norm_tokens(name: str) -> str:
     return "-".join(out)
 
 
-def _baseline_for(run_dir: str) -> float | None:
+def _official_meta(run_dir: str) -> tuple[float | None, int | None]:
+    """(agent-self-report coverage, official max_context_window_tokens) from the
+    matching estimation record, or Nones when absent.
+
+    The official max_ctx varies BY RUN, not by env (swebench across models:
+    7060 / 6772 / 10472 / 8265 / 21711), so extracting every run with one per-env
+    constant corrupts the can_finish feasibility flag against official ground
+    truth on up to 19% of a run's samples. Coverage numbers were unaffected
+    (implicit truncation never fires on these runs) — the flag was simply wrong
+    for any future feasibility-gated use.
+    """
     prefix = run_dir.split("-main")[0]
     candidates = glob.glob(f"{_DATA}/estimation/{prefix}*/*.json")
     if not candidates:
@@ -83,20 +93,28 @@ def _baseline_for(run_dir: str) -> float | None:
             continue
         try:
             with open(est, encoding="utf-8") as handle:
-                summary = json.load(handle).get("summary", {})
+                record = json.load(handle)
         except (json.JSONDecodeError, OSError):
             continue
-        cov = summary.get("remaining_token_interval_coverage_rate")
-        if cov is not None:
-            return float(cov)
-    return None
+        cov = (record.get("summary") or {}).get("remaining_token_interval_coverage_rate")
+        ctx = (record.get("config") or {}).get("max_context_window_tokens")
+        if cov is not None or ctx is not None:
+            return (
+                float(cov) if cov is not None else None,
+                int(ctx) if ctx is not None else None,
+            )
+    return None, None
 
 
 def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     rows = []
     for run in discover_runs():
+        baseline, official_ctx = _official_meta(run["run_dir"])
+        # Prefer the run's own recorded context window; the per-env constant is
+        # only a fallback for runs shipping no estimation record.
+        max_ctx = official_ctx or ENV_MAX_CTX[run["env"]]
         df = samples_to_dataframe(
-            flatten_to_samples(load_rollouts(run["raw"]), max_ctx=ENV_MAX_CTX[run["env"]])
+            flatten_to_samples(load_rollouts(run["raw"]), max_ctx=max_ctx)
         )
         if df.empty or df["rollout_index"].nunique() < 12:
             continue
@@ -111,7 +129,6 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
             "SPCI": marginal_coverage(y[te], *spci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha, groups=gte)[:2]),
             "DtACI": marginal_coverage(y[te], *dtaci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha, groups=gte)[:2]),
         }
-        baseline = _baseline_for(run["run_dir"])
         if baseline is None:
             # Loud, not silent: an absent baseline should be a known data gap,
             # never an unnoticed matching failure.

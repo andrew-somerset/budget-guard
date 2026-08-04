@@ -2,8 +2,11 @@
 
 Warehouse, all three resources. Rows with can_finish=False are treated as a
 deployment would see them (label masked; only the bound b = budget − spent and the
-observed *which-budget-was-hit* signal are known); recoverable totals are used ONLY
-to measure true coverage afterwards.
+observed *which-budget-was-hit* signal are known); recovered labels are used ONLY
+to measure coverage afterwards. That recovery is exact for time_weeks but carries
+load_warehouse's interpolation error for cost/warehouse (median 12-27% on
+comparable rows) — censored-stratum coverage for those resources is against an
+approximate label. See censored.py's module docstring.
 
 Compares five calibrations of the one-sided upper bound (see ``censored.upper_qhat``),
 including ``resource_bound`` — the multi-resource fix that bounds resource r only on

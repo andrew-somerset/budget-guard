@@ -119,8 +119,14 @@ def main() -> None:
             placed.append(rel)
             print(f"  ok    {round(size / 1e6, 2):>7} MB  {rel}")
         except OSError as exc:
+            # requests/huggingface_hub exceptions subclass OSError, so a bare
+            # except here used to swallow 404s, auth failures and revision-not-
+            # found as "path too long" — a wrong REVISION would skip every file
+            # while the fetch reported success. Network/hub errors must be fatal.
+            if type(exc).__module__.split(".")[0] in {"huggingface_hub", "requests", "urllib3"}:
+                raise
             skipped.append(rel)
-            print(f"  SKIP  (path too long / IO)  {rel}")
+            print(f"  SKIP  ({type(exc).__name__}: {exc})  {rel}")
     shutil.rmtree(_ext(STAGE), ignore_errors=True)
     print(f"\nPlaced {len(placed)}/{len(FILES)} files into {DEST}")
     if skipped:

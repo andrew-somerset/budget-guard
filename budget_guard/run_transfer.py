@@ -20,6 +20,7 @@ tables/transfer_swebench_per_seed.csv.
 from __future__ import annotations
 
 import glob
+import json
 import os
 
 import numpy as np
@@ -40,14 +41,35 @@ from .split import group_split
 
 _DATA = os.path.join(os.path.dirname(__file__), "..", "data", "bagen_hf", "estimation")
 SOURCE = "swebench-origin-claude-opus4.7_claude-opus-4.7-low-thinking-512-main"
+# Fallback only (= the opus source record's official value). Each run's actual
+# context window comes from its own estimation record: the five swebench runs use
+# 7060 / 6772 / 10472 / 8265 / 21711 — one constant corrupts can_finish vs the
+# official ground truth on up to 19% of a target's samples.
 MAX_CTX = 7060
 
 BLUE, AQUA, YELLOW, VIOLET, GREEN, GRAY = "#2a78d6", "#1baf7a", "#eda100", "#4a3aa7", "#008300", "#8B93A1"
 
 
+def _official_max_ctx(run_dir: str) -> int:
+    """The run's own recorded max_context_window_tokens, else the MAX_CTX fallback."""
+    for path in glob.glob(f"{_DATA}/{run_dir}/*.json"):
+        if "dialogues" in path or path.endswith("_pairs.json"):
+            continue
+        try:
+            with open(path, encoding="utf-8") as handle:
+                ctx = (json.load(handle).get("config") or {}).get("max_context_window_tokens")
+        except (json.JSONDecodeError, OSError):
+            continue
+        if ctx:
+            return int(ctx)
+    return MAX_CTX
+
+
 def _load(run_dir: str) -> pd.DataFrame:
     (path,) = glob.glob(f"{_DATA}/{run_dir}/*eval_estimation_dialogues.json")
-    return samples_to_dataframe(flatten_to_samples(load_rollouts(path), max_ctx=MAX_CTX))
+    return samples_to_dataframe(
+        flatten_to_samples(load_rollouts(path), max_ctx=_official_max_ctx(run_dir))
+    )
 
 
 def target_runs() -> dict[str, str]:

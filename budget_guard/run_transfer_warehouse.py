@@ -142,35 +142,43 @@ def _agent_rows(model: str, seed: int, target: pd.DataFrame) -> list[dict]:
     late = _late_mask(target)
     covered_all = np.ones(len(target), dtype=bool)
     rows = []
+    # None flags = the agent declared the run impossible and gave no interval;
+    # BAGEN's coverage convention excludes them. A bool cast would count NaN as
+    # covered (truthy) — mask to defined rows instead.
+    defined_all = target[[f"agent_cov_{r}" for r in RESOURCES]].notna().all(axis=1).to_numpy()
     for res in RESOURCES:
-        covered = target[f"agent_cov_{res}"].to_numpy(dtype=bool)
+        flags = target[f"agent_cov_{res}"]
+        defined = flags.notna().to_numpy()
+        covered = flags.fillna(False).astype(bool).to_numpy()
         covered_all &= covered
-        draws = rollout_bootstrap_mean_draws(covered, groups, seed=seed)
-        late_draws = rollout_bootstrap_mean_draws(covered[late], groups[late], seed=seed)
+        d_res, d_late = defined, defined & late
+        draws = rollout_bootstrap_mean_draws(covered[d_res], groups[d_res], seed=seed)
+        late_draws = rollout_bootstrap_mean_draws(covered[d_late], groups[d_late], seed=seed)
         rows.append(
             {
                 "target_model": model,
                 "method": "agent self-report",
                 "resource": res,
                 "seed": seed,
-                "coverage": float(covered.mean()),
+                "coverage": float(covered[d_res].mean()) if d_res.any() else float("nan"),
                 "ci_lo": float(np.quantile(draws, 0.05)),
                 "ci_hi": float(np.quantile(draws, 0.95)),
-                "late_coverage": float(covered[late].mean()),
+                "late_coverage": float(covered[d_late].mean()) if d_late.any() else float("nan"),
                 "late_ci_lo": float(np.quantile(late_draws, 0.05)),
                 "late_ci_hi": float(np.quantile(late_draws, 0.95)),
                 "_draws": draws,
                 "_late_draws": late_draws,
                 "normalized_width": np.nan,
                 "frac_unbounded": np.nan,
-                "n_test": len(target),
+                "n_test": int(d_res.sum()),
                 "n_rollouts": target["rollout_index"].nunique(),
                 "final_shared_level": np.nan,
             }
         )
-    draws = rollout_bootstrap_mean_draws(covered_all, groups, seed=seed)
+    d_all, d_all_late = defined_all, defined_all & late
+    draws = rollout_bootstrap_mean_draws(covered_all[d_all], groups[d_all], seed=seed)
     late_draws = rollout_bootstrap_mean_draws(
-        covered_all[late], groups[late], seed=seed
+        covered_all[d_all_late], groups[d_all_late], seed=seed
     )
     rows.append(
         {
@@ -178,17 +186,17 @@ def _agent_rows(model: str, seed: int, target: pd.DataFrame) -> list[dict]:
             "method": "agent self-report",
             "resource": "ALL (joint)",
             "seed": seed,
-            "coverage": float(covered_all.mean()),
+            "coverage": float(covered_all[d_all].mean()) if d_all.any() else float("nan"),
             "ci_lo": float(np.quantile(draws, 0.05)),
             "ci_hi": float(np.quantile(draws, 0.95)),
-            "late_coverage": float(covered_all[late].mean()),
+            "late_coverage": float(covered_all[d_all_late].mean()) if d_all_late.any() else float("nan"),
             "late_ci_lo": float(np.quantile(late_draws, 0.05)),
             "late_ci_hi": float(np.quantile(late_draws, 0.95)),
             "_draws": draws,
             "_late_draws": late_draws,
             "normalized_width": np.nan,
             "frac_unbounded": np.nan,
-            "n_test": len(target),
+            "n_test": int(d_all.sum()),
             "n_rollouts": target["rollout_index"].nunique(),
             "final_shared_level": np.nan,
         }

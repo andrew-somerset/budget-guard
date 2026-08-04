@@ -109,7 +109,11 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), window_rollouts: int = 10):
             )
         )
     raw = pd.DataFrame(rows)
-    numeric = [column for column in raw if column not in {"scenario", "mode", "seed"}]
+    # CI endpoint columns excluded: their cross-seed mean is not a CI (2026-08-01 audit);
+    # per-seed CIs remain in the per-seed CSV.
+    numeric = [column for column in raw
+               if column not in {"scenario", "mode", "seed"}
+               and not column.endswith(("_ci_lo", "_ci_hi"))]
     summary = raw.groupby(["scenario", "mode"], sort=False)[numeric].mean().reset_index()
     os.makedirs("tables", exist_ok=True)
     raw.to_csv("tables/loop_closed_loop_per_seed.csv", index=False)

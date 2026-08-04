@@ -292,7 +292,11 @@ class ResourceLedger:
         if set(totals) != set(self._resource_names):
             raise ValueError("finish totals must contain exactly the configured resources")
         for name in self._resource_names:
-            if totals[name] + 1e-12 < self._spent[name]:
+            # Relative tolerance: warehouse totals are ~1e5-1e6, where float
+            # accumulation error alone exceeds an absolute 1e-12 and would reject
+            # mathematically exact totals.
+            slack = 1e-9 * max(1.0, abs(self._spent[name]))
+            if totals[name] + slack < self._spent[name]:
                 raise ValueError(f"{name} total cannot be below observed spend")
         self._outcome = RunFinish(event.success, totals, event.metadata)
         return self.trace()

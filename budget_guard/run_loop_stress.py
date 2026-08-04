@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from .data import ENVS, load_env
+from ._checkpoint import resume_allowed, write_fingerprint
 from .loop_datasets import token_traces_from_dataframe, warehouse_traces_from_dataframe
 from .loop_evaluation import replay_traces, summarize_replay
 from .loop_guard import LoopBudgetGuard
@@ -107,7 +108,10 @@ def main(
 
     raw = pd.DataFrame(rows)
     checkpoint = "tables/loop_stress_raw.csv"
-    if resume and os.path.exists(checkpoint):
+    # keep="last" below means freshly computed rows always win, but prior rows for
+    # (scenario, window, seed) combos NOT recomputed this run would survive a code
+    # change untouched — so stale-source checkpoints are refused outright.
+    if resume and resume_allowed(checkpoint):
         prior = pd.read_csv(checkpoint)
         raw = pd.concat([prior, raw], ignore_index=True).drop_duplicates(
             ["scenario", "window_rollouts", "order_seed"], keep="last"
@@ -125,6 +129,7 @@ def main(
     ).reset_index()
     os.makedirs("tables", exist_ok=True)
     raw.to_csv("tables/loop_stress_raw.csv", index=False)
+    write_fingerprint("tables/loop_stress_raw.csv")
     summary.to_csv("tables/loop_stress.csv", index=False)
     print(summary.to_string(index=False))
     print("\nwrote tables/loop_stress.csv, tables/loop_stress_raw.csv")

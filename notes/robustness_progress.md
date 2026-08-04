@@ -917,3 +917,94 @@ layer, drivers-B, tests-audit, infra, stats-methodology) resumed and running.
 
 Reproduce: `python -m budget_guard.run_{coverage,transfer,transfer_env,conditional,allruns,transfer_warehouse}`;
 `python scripts/check_headline_numbers.py`.
+
+### 2026-08-02 — Adversarial audit rounds 2-3: exact warehouse labels, a poisoned checkpoint, and the agent baseline (NUMBERS CHANGE; guard rows invariant)
+
+Status: **Fixed + regenerated + attributed.** Continuation of the 2026-08-01 audit: the
+remaining 9 reviewer lanes ran (loop layer, data pipeline, censored/multiresource,
+economics, drivers-B, tests, infra, stats-methodology), returning 41 further findings.
+Each fix below was verified by inline reproduction before changing code; every
+regenerated table was diffed against its predecessor and the deltas attributed row-class
+by row-class. **All guard/method rows are bit-identical throughout — only labels,
+baselines, and disclosure changed.**
+
+**1. Warehouse loop labels were interpolated pseudo-labels (major).**
+loop_datasets.warehouse_traces_from_dataframe derived per-step spend from
+load_warehouse's week-proportional interpolation even where the exact remaining was
+recorded — median 26.5% (item-weeks) / 12.2% (cost) label distortion on the opus run.
+Fixed at the source: load_warehouse now computes spent = total − actual_remaining
+(exact) on uncensored rows; the converter derives spend from total − y. Censored rows
+keep the documented interpolation (y is unrecoverable there — see finding 5).
+
+**2. A stale checkpoint silently poisoned the "regenerated" loop tables (CRITICAL).**
+run_loop_validation's __main__ passes resume=True, and resume trusted any existing
+per-seed CSV with no notion of what code wrote it. The first post-fix regeneration
+therefore SKIPPED all five seeds and re-serialized the pre-fix rows with fresh mtimes —
+caught because the output was byte-identical to a round-trip of the old checkpoint.
+Fix: budget_guard/_checkpoint.py — every resumable checkpoint gets a sidecar hash of
+all budget_guard/*.py sources; resume refuses a fingerprint mismatch. Corrected
+warehouse online-joint loop coverage: **0.928–0.970** across the four model swaps
+(the poisoned range was 0.943–0.963); tokens-side unchanged at 0.912.
+
+**3. The agent self-report baseline was silently deflated 10–24 points (major).**
+load_warehouse coerced None per-row coverage flags (agent declared the run impossible
+and emitted no interval) to False; BAGEN's own summary convention EXCLUDES those rows.
+Fixed: flags preserve None; both consumers mask to defined rows (a bool cast would have
+counted NaN as covered). Effect: transfer_warehouse agent rows move up to +0.24
+(sonnet4.6 time 0.825→1.000, gemini3.1 time 0.789→0.982); the like-for-like agent
+joint in multiresource.csv moves 0.3625→**0.4239, now independently matching BAGEN's
+official 0.422** — reconciling a discrepancy previously waved at in the 2026-07-21 log.
+This STRENGTHENS the baseline and slightly weakens our contrast; C2's "0.42 → 0.95"
+headline is unchanged (it already used BAGEN's own rate) and now holds under both
+conventions.
+
+**4. Headline-adjacent invariance after the exact-spend fix.** Hard-cap($) baseline
+rows in the abort frontier / cost-of-pass move (their triggers read spend; up to $548k
+in cost-of-pass), but the guard rule rows are identical: **86.3% doomed-$ saved at 0%
+false aborts and cost-of-pass −45.9% both survive.** censored_upper and
+gated_intervals: fully identical (censored-row bounds legitimately keep the
+interpolation — nothing exact exists to replace them).
+
+**5. Censored-coverage claims softened (major, corroborated by two lanes).** The
+"mask-and-measure = true coverage" claim is exact ONLY for time_weeks; cost/warehouse
+recovered labels inherit the interpolation (median 12–27% error on comparable rows).
+censored.py / run_censored.py docstrings now say so. Whether to restrict the paper's
+mask-and-measure claim to time_weeks or report label-uncertainty bands is a PI
+decision (added to the meeting list).
+
+**6. Further fixes, same rounds:** OpenAIUsageAdapter raises on missing usage instead
+of silently recording zero spend (a guard fed zeros never intervenes);
+fetch_bagen no longer mislabels hub/network/revision failures as "path too long"
+(requests exceptions subclass OSError — a wrong revision previously skipped every file
+while reporting success); per-run official max_ctx in run_allruns/run_transfer (was one
+per-env constant; can_finish wrong on up to 19% of a run's samples, unconsumed today);
+three extract.py port divergences vs the BAGEN reference (0-as-missing or-chains,
+None-total coerced to 0, missing action_names fallback — all currently latent, verified
+non-firing on all 19,073 turns on disk); Windows-only .venv/Lib globs in the two text-
+corpus scripts (corpus silently collapsed to ~44 repo files on any non-Windows machine —
+note: the source-text scenario's corpus is machine-dependent by construction; treat it
+as the smoke test it is documented to be); guard.observe() no longer double-adds a
+run's scores on a second call; ResourceLedger.finish uses a relative tolerance
+(absolute 1e-12 rejected exact warehouse-scale totals); adaptive_joint_qhats got the
+same contiguous-groups leak guard as the conformal methods; remaining
+CI-endpoint-averaging stragglers removed (run_external → pooled bootstrap; loop
+aggregate tables drop per-seed CI endpoint columns rather than averaging them);
+check_headline_numbers range claims are two-sided (a collapsed spread now fails);
+label-efficiency table discloses frac_draws_unbounded (the small-m "fail-safe ~1.0"
+points are [0,inf) intervals counted as covered); gap tables regenerated (were stale vs
+current code); loop-datasets test fixture now exercises the exact-label path.
+
+**Verified-open items for the PI meeting (found, deliberately not changed):**
+resource_bound's stated guarantee wording vs what the estimator delivers; the censored
+quantile-level caps at 1.0; the copula shared-rank being selected on the same
+calibration scores it then thresholds; ACI's missing empty-interval branch (we clamp
+the level instead); **the "SPCI" label** — the implementation is a rolling-window
+empirical quantile of CQR scores, not Xu & Xie's residual-regression SPCI, and a
+reviewer will notice; loop_guard's gate-window including the terminal prefix and the
+independent-scheme small-window degeneracy (same family as the documented window=10
+issue); the vacuous window-contract tests in test_loop_guard (calibration saturates the
+window, so the assertions cannot fail) and the missing direct tests for
+summarize_replay's headline columns.
+
+Reproduce: `python -m pytest -q`; `python -m budget_guard.run_{multiresource,transfer_warehouse,economic_warehouse,censored,gated,gap,label_efficiency,loop_validation,loop_closed_loop,loop_stress}`;
+`python scripts/check_headline_numbers.py`.

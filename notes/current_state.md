@@ -77,7 +77,8 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   metadata, and dependency-free OpenAI/LangChain/mapping telemetry adapters. The same
   live core now replays token, Warehouse, and independent sequential-text traces.
 - **Generic robustness evidence:** five-seed default-10 online-joint coverage = 0.912 on
-  Sokoban→SWE-bench tokens and 0.943–0.963 across four Warehouse model swaps (now with
+  Sokoban→SWE-bench tokens and 0.928–0.970 across four Warehouse model swaps (corrected
+  2026-08-02: exact warehouse labels + a stale-checkpoint fix — see robustness log; now with
   rollout-cluster 90% CIs), with 0–3.1% automatic false stops and 71–78% failed-run
   catches. A 200-run order/window stress grid picks window=10 for stability; 5 fails safe,
   20–40 adapt slower on token shift. **Self-audit caveat:** at window=10 the operative

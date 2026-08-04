@@ -156,6 +156,11 @@ class BudgetGuard:
         if not self.online:
             return 0
         per = list(per_turn_totals if per_turn_totals is not None else self._per_turn)
+        if per_turn_totals is None:
+            # Consume the live buffer: the run is over, and leaving it in place made a
+            # second observe() silently fold the same conformity scores in twice,
+            # double-weighting that run in every subsequent interval.
+            self._per_turn = []
         if len(per) < 2:
             return 0
         total = float(sum(per))

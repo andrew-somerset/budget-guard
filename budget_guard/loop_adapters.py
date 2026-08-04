@@ -18,11 +18,36 @@ def _value(obj: Any, name: str, default: Any = None) -> Any:
 
 
 def _usage_container(payload: Any) -> Any:
-    return _value(payload, "usage", _value(payload, "usage_metadata", payload))
+    usage = _value(payload, "usage")
+    if usage is not None:
+        return usage
+    usage = _value(payload, "usage_metadata")
+    if usage is not None:
+        return usage
+    return payload
+
+
+_TOKEN_KEYS = (
+    "input_tokens", "prompt_tokens", "output_tokens", "completion_tokens", "total_tokens",
+)
 
 
 def _token_counts(payload: Any) -> tuple[float, float, float]:
     usage = _usage_container(payload)
+    # Missing telemetry must be LOUD. Recording a zero-usage step keeps the
+    # ledger's spend at 0 and the guard reporting full headroom while the run
+    # spends freely — the exact "optimistic, unsafe" failure the ledger docstring
+    # warns about, and here it previously needed no opt-in: a response with
+    # usage=None (e.g. streaming without include_usage) silently adapted to
+    # {'tokens': 0.0}. The other adapters already raise; now this one does too.
+    if usage is None or all(_value(usage, key) is None for key in _TOKEN_KEYS):
+        raise ValueError(
+            "OpenAIUsageAdapter: no token usage found on the response (usage / "
+            "usage_metadata is missing, None, or carries no token fields). "
+            "Refusing to record zero spend. For streaming chat completions pass "
+            "stream_options={'include_usage': True}; otherwise supply a payload "
+            "with input/output token counts."
+        )
     input_tokens = float(
         _value(usage, "input_tokens", _value(usage, "prompt_tokens", 0)) or 0
     )

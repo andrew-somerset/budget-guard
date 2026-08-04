@@ -50,6 +50,9 @@ def _warehouse_df(censored=False):
             row[f"budget_{resource}"] = budgets[resource]
             row[f"total_{resource}"] = totals[resource]
             row[f"spent_{resource}"] = spent[resource]
+            # Exact-label path (2026-08-02): converters prefer total - y over the
+            # interpolated spent_ column; censored rows have no recorded y.
+            row[f"y_{resource}"] = None if censored else totals[resource] - spent[resource]
         rows.append(row)
     return pd.DataFrame(rows)
 

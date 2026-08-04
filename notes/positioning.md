@@ -210,3 +210,40 @@ conformal collapses under shift, deployment-faithful online conformal recovers m
 joint (0.86–0.88). The residual gap to nominal motivates the PI-scoped methods increment
 (rollout-count windows / unified calibrator; any new window chosen on CAL only,
 predeclared). Details + full tables: notes/robustness_progress.md 2026-07-21 entry.
+
+## Decisions adopted 2026-08-02 (decision log — revisitable, but the write-up proceeds on these)
+
+Adopted after the three-round adversarial audit, each with the reasoning recorded so it
+can be checked rather than re-litigated:
+
+1. **Censored-conformal guarantee: claim the SELECTIVE guarantee** (coverage conditional
+   on passing the feasibility gate / on the kept subpopulation), stated exactly; marginal
+   numbers are reported as empirical observations. Rationale: that is what the math as
+   implemented delivers; claiming marginal is the reviewer-fatal overreach. Gated-IPCW
+   stays a proposed increment (not implemented pre-submission).
+2. **Mask-and-measure claim scope: quantitative only for time_weeks.** Cost/warehouse
+   censored-stratum coverage is labeled "against recovered (interpolated) labels" with
+   the 12-27% label-error magnitude stated. Rationale: recovery is exact only for time.
+3. **Adaptive joint calibration is NOT coupled to the feasibility gate** in this paper.
+   Rationale: the compound selection event has no clean guarantee statement; the loop
+   window semantics are themselves scheduled for unification; the story stands without it.
+4. **Model-swap framing: reliability, not level.** Lead cross-env (frozen 0.10 vs
+   windowed-CQR 0.80 — a real collapse); present model-swap as the calibration-lottery
+   result: frozen cov_std ~0.18 (honest bands up to 11x wider) vs ~0.01 online at equal
+   mean coverage. Rationale: the five-seed data does not support "frozen collapses" on
+   model swap and does support the stability claim.
+5. **"SPCI" is renamed "windowed-CQR"** in code labels, tables, figures and all forward
+   prose; SPCI (Xu & Xie 2023) is cited as inspiration, never as the implemented method
+   (we do not fit the residual quantile regression). Historical notes keep the old name
+   as point-in-time record. `conformal.spci` remains as an alias.
+6. **Copula joint coverage is an empirical result, not a guarantee** (shared rank is
+   selected on the calibration scores it thresholds). The C2 headline (0.42 -> 0.95)
+   rests on Bonferroni, which involves no selection — stated explicitly in the write-up.
+7. **ACI deviation documented, not changed:** we clamp the level at 0.999 instead of
+   emitting canonical empty intervals; the deviation is safe-side (conservative) only.
+8. **Loop layer stays engineering-preview.** The two audit findings (terminal prefix in
+   the gate window; independent-scheme small-window degeneracy) are documented in the
+   module docstring and fold into the calibrator-unification increment. No headline
+   claim rests on the loop layer.
+9. **Venue: NeurIPS 2026 workshop first** (speed; BAGEN team scoop risk), extending to
+   COPA/AISTATS 2027 with the methods increment (gated-IPCW + unified calibrators).

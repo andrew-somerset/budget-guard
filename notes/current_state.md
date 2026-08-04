@@ -22,7 +22,7 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
 ## What's done
 - **Core contributions (C1–C4):** calibrated intervals that survive deployment shift
   (agent self-report 47% → ~0.90–0.92; frozen conformal collapses to 0.10 under cross-env
-  shift while SPCI recovers to 0.80 at 0% unbounded); multi-resource joint coverage
+  shift while windowed-CQR (formerly labeled "SPCI"; see positioning.md decision log 2026-08-02) recovers to 0.80 at 0% unbounded); multi-resource joint coverage
   (0.42 → 0.95); economic stopping (86% of doomed-$ saved @ 0% false aborts on warehouse);
   cost-of-pass (−46%).
 - **Methods contribution (censored conformal, rungs 1–3):** resource-specific
@@ -61,9 +61,9 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   size). Prose cannot be diffed, so it rots silently; this makes it fail loudly.
 - **Full breadth + model transfer:** all 19 token-budget model×environment runs now execute;
   SWE-bench model swap (**5 seeds since 2026-08-01**, was single-seed): frozen 0.64–0.89
-  vs SPCI 0.66–0.89, both at 0% unbounded — i.e. comparable MEAN coverage. The separation
+  vs windowed-CQR 0.66–0.89, both at 0% unbounded — i.e. comparable MEAN coverage. The separation
   is in variance, not level: frozen cov_std ≈ 0.18 (per-model spread up to 0.44 across
-  five seeds) vs SPCI ≈ 0.01. See the 2026-08-01 entry in robustness_progress.md; the
+  five seeds) vs windowed-CQR ≈ 0.01. See the 2026-08-01 entry in robustness_progress.md; the
   previously quoted "frozen 0.38–0.76" was seed 0, which sat near frozen's minimum on
   all four targets.
 - **External-budget transfer + adaptive joint method (development):** Opus 4.7 → four
@@ -91,19 +91,21 @@ NeurIPS/ICML 2026 workshop (or COPA / AISTATS 2027 for the methods angle).
   conservative default because no successful run is auto-stopped.
 
 ## What's blocked (documented, not skipped)
-- **PI-blocked** — which censored-conformal guarantee to claim (selective-on-kept vs
-  marginal); the next methods increment (gated-IPCW / positivity restoration — proposal
-  in `notes/robustness_progress.md`); whether adaptive joint calibration should be joined
-  to the feasibility gate for censored/doomed Warehouse runs; and whether the by-depth
-  cut belongs on the warehouse tables.
+- **Formerly PI-blocked — resolved 2026-08-02** by the decision log in positioning.md
+  (selective guarantee; gated-IPCW deferred as the methods increment; no gate coupling;
+  by-depth cut stays off the warehouse tables for this paper).
 - **Evidence-blocked** — no second independent agent benchmark and no anonymized live/
   production pilot logs are available here. The source-text path is explicitly a pipeline
   smoke test, not external agent-domain validation.
 
 ## Next steps (prioritized)
-1. **PI meeting** — sign off on (a) the censored-conformal guarantee framing + the
-  gated-IPCW next increment, (b) whether to connect adaptive joint calibration to the
-  feasibility gate, and (c) the target venue. These gate the methods framing.
+1. **Decisions adopted 2026-08-02** (see positioning.md decision log): selective
+  guarantee framing for censored conformal; mask-and-measure quantitative only for
+  time_weeks; no gate/adaptive-joint coupling this paper; reliability framing for
+  model swap; "SPCI" renamed windowed-CQR; copula reported as empirical (Bonferroni
+  carries the guarantee); venue = NeurIPS 2026 workshop then COPA/AISTATS 2027.
+  The write-up is unblocked on these; they are recorded with rationale and
+  revisitable if the PI objects asynchronously.
 2. **Independent validation / pilot** — collect one coding or browser-agent dataset through
   the generic JSONL/adapters, then run the unchanged validation/closed-loop harness. This
   is a data/resource task; do not relabel the source-text smoke test as agent evidence.

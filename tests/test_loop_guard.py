@@ -61,19 +61,22 @@ def _synthetic_traces(n=80, seed=0):
     return traces
 
 
-def _guard(seed=0):
+def _guard(seed=0, window_rollouts=20):
     return LoopBudgetGuard.from_traces(
         _synthetic_traces(),
         seed=seed,
         context_keys=("difficulty",),
         progress_keys=("progress",),
-        window_rollouts=20,
+        window_rollouts=window_rollouts,
         min_evidence_runs=5,
     )
 
 
 def test_stateful_guard_predicts_all_resources_and_updates_after_finish_only():
-    guard = _guard()
+    # window LARGER than the calibration set: with the default (saturated) window,
+    # min(before + 1, window) == before and the update assertions below could not
+    # fail whether or not the finished run was absorbed (2026-08-02 audit).
+    guard = _guard(window_rollouts=200)
     before = guard.evidence_runs
     gate_before = guard.gate_evidence_runs
     specs = _specs()
@@ -90,12 +93,12 @@ def test_stateful_guard_predicts_all_resources_and_updates_after_finish_only():
         {"tokens": 150, "usd": 0.7, "seconds": 30}, {"progress": 10}
     )
     guard.finish(True)
-    assert guard.evidence_runs == min(before + 1, guard.window_rollouts)
-    assert guard.gate_evidence_runs == min(gate_before + 1, guard.window_rollouts)
+    assert guard.evidence_runs == before + 1
+    assert guard.gate_evidence_runs == gate_before + 1
 
 
 def test_aborted_run_never_fabricates_completion_scores():
-    guard = _guard()
+    guard = _guard(window_rollouts=200)  # unsaturated: absorption would be visible
     before = guard.evidence_runs
     gate_before = guard.gate_evidence_runs
     guard.start("aborted", _specs(), {"difficulty": 2})

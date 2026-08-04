@@ -141,6 +141,13 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 def _joint_rank_qhats(score_mat: np.ndarray, alpha: float) -> tuple[np.ndarray, float]:
     """Smallest shared marginal rank whose thresholds cover enough score vectors.
 
+    Known finite-sample optimism (decision 2026-08-02): the shared rank is
+    SELECTED on the same calibration scores it then thresholds, so the copula
+    scheme's joint coverage carries selection bias and is reported as an
+    empirical result, not a guarantee. The guarantee-carrying headline (C2's
+    0.95) is Bonferroni, which involves no data-driven selection. A split-
+    selection variant is future work.
+
     Each row is one observation and each column is one resource's CQR conformity
     score. We move one *shared* rank upward until at least
     ``ceil((n + 1) * (1 - alpha))`` rows fall below all resource thresholds at once.

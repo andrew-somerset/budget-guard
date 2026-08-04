@@ -49,7 +49,7 @@ CLAIMS = [
     {
         "quoted_in": "current_state.md — 'SPCI recovers to 0.80 at 0% unbounded'",
         "table": "transfer_env.csv",
-        "where": {"target_env": "swebench", "method": "SPCI"},
+        "where": {"target_env": "swebench", "method": "windowed-CQR"},
         "column": "coverage",
         "kind": "approx",
         "value": 0.7983,
@@ -57,7 +57,7 @@ CLAIMS = [
     {
         "quoted_in": "current_state.md — '...at 0% unbounded' (the operational half of the claim)",
         "table": "transfer_env.csv",
-        "where": {"target_env": "swebench", "method": "SPCI"},
+        "where": {"target_env": "swebench", "method": "windowed-CQR"},
         "column": "frac_unbounded",
         "kind": "approx",
         "value": 0.0,
@@ -65,7 +65,7 @@ CLAIMS = [
     {
         "quoted_in": "robustness_progress.md 2026-07-21 — 'searchr1: SPCI 0.726 -> 0.710'",
         "table": "transfer_env.csv",
-        "where": {"target_env": "searchr1", "method": "SPCI"},
+        "where": {"target_env": "searchr1", "method": "windowed-CQR"},
         "column": "coverage",
         "kind": "approx",
         "value": 0.7103,
@@ -73,7 +73,7 @@ CLAIMS = [
     {
         "quoted_in": "current_state.md — 'model swap ... SPCI 0.66-0.89'",
         "table": "transfer_swebench.csv",
-        "where": {"method": "SPCI"},
+        "where": {"method": "windowed-CQR"},
         "column": "coverage",
         "kind": "range",
         "lo": 0.66,
@@ -95,7 +95,7 @@ CLAIMS = [
         # gap, which is what the claim now rests on.
         "quoted_in": "current_state.md — 'frozen cov_std ~0.18 vs SPCI ~0.01 on model swap'",
         "table": "transfer_swebench.csv",
-        "where": {"method": "SPCI"},
+        "where": {"method": "windowed-CQR"},
         "column": "cov_std",
         "kind": "within",
         "lo": 0.0,
@@ -113,7 +113,7 @@ CLAIMS = [
     {
         "quoted_in": "robustness_progress.md 2026-07-21 — 'sokoban ~unchanged (SPCI 0.916)'",
         "table": "coverage.csv",
-        "where": {"env": "sokoban", "method": "SPCI"},
+        "where": {"env": "sokoban", "method": "windowed-CQR"},
         "column": "coverage",
         "kind": "approx",
         "value": 0.9155,

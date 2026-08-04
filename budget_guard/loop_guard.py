@@ -1,4 +1,12 @@
-"""Stateful, task-neutral multi-resource guard for long-horizon agent loops."""
+"""Stateful, task-neutral multi-resource guard for long-horizon agent loops.
+
+Known limitations (2026-08-02 audit; the loop layer is engineering preview and no
+headline claim rests on it): (1) the online gate-window update in finish()
+includes the terminal prefix in each run's minimum finish probability; (2) with
+calibration_scheme='independent' and small windows, per-resource operative
+levels degenerate the same way the documented joint window=10 case does. Both
+fold into the planned calibrator-unification methods increment.
+"""
 from __future__ import annotations
 
 from collections import deque

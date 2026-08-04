@@ -17,7 +17,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, spci, tune_gamma
+from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, windowed_cqr, tune_gamma
 from .data import ENVS, load_env
 from .features import build_xy
 from .metrics import (
@@ -51,7 +51,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
             for name, (lo, hi) in {
                 "split-CQR (frozen)": cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2],
                 "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2],
-                "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
+                "windowed-CQR": windowed_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
                 "DtACI": dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
             }.items():
                 draws = rollout_bootstrap_draws(yte, lo, hi, gte, seed=seed)
@@ -92,8 +92,8 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    method_order = ["split-CQR (frozen)", "ACI-CQR", "SPCI", "DtACI"]
-    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "SPCI": VIOLET, "DtACI": GREEN}
+    method_order = ["split-CQR (frozen)", "ACI-CQR", "windowed-CQR", "DtACI"]
+    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "windowed-CQR": VIOLET, "DtACI": GREEN}
     xs = np.arange(len(targets))
     width = group_bar_width(len(method_order))
     fig, ax = plt.subplots(figsize=(9, 5.0), constrained_layout=True)

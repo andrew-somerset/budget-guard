@@ -2,7 +2,7 @@
 
 For each run with raw dialogues (7 sokoban, 7 searchr1, 5 swebench = 19 runs),
 split by rollout (seed 0), fit the guard, report coverage of split-CQR (offline),
-SPCI and DtACI (online) alongside the agent-self-report baseline when the matching
+windowed-CQR and DtACI (online) alongside the agent-self-report baseline when the matching
 estimation record exists. One seed: this table is about breadth, not variance —
 the headline table (run_coverage) carries the multi-seed error bars.
 
@@ -18,7 +18,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from .conformal import DEFAULT_ALPHA, cqr_split, dtaci, spci
+from .conformal import DEFAULT_ALPHA, cqr_split, dtaci, windowed_cqr
 from .extract import flatten_to_samples, load_rollouts, samples_to_dataframe
 from .features import build_xy
 from .metrics import marginal_coverage
@@ -126,7 +126,7 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
         gte = groups[te]  # rollout-safe revelation for the online methods
         covs = {
             "split-CQR": marginal_coverage(y[te], *cqr_split(X[tr], y[tr], X[ca], y[ca], X[te], alpha=alpha)[:2]),
-            "SPCI": marginal_coverage(y[te], *spci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha, groups=gte)[:2]),
+            "windowed-CQR": marginal_coverage(y[te], *windowed_cqr(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha, groups=gte)[:2]),
             "DtACI": marginal_coverage(y[te], *dtaci(X[tr], y[tr], X[ca], y[ca], X[te], y[te], alpha=alpha, groups=gte)[:2]),
         }
         if baseline is None:
@@ -157,7 +157,7 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     labels = [f"{r.env} · {r.model}" for r in table.itertuples()]
     ys = np.arange(len(table))[::-1]
     for col, color, marker in [("agent", GRAY, "x"), ("split-CQR", AQUA, "o"),
-                               ("SPCI", VIOLET, "o"), ("DtACI", GREEN, "o")]:
+                               ("windowed-CQR", VIOLET, "o"), ("DtACI", GREEN, "o")]:
         vals = table[col].to_numpy(dtype=float)
         ax.scatter(vals, ys, s=34, color=color, marker=marker, label=col, zorder=3)
     ax.axvline(1 - alpha, color="#4A5361", lw=1.2, ls="--", zorder=1)
@@ -173,7 +173,7 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     fig.savefig("figures/allruns.png", dpi=200, bbox_inches="tight")
 
     print(table.to_string(index=False))
-    ok = table[["split-CQR", "SPCI", "DtACI"]].ge(0.85).mean()
+    ok = table[["split-CQR", "windowed-CQR", "DtACI"]].ge(0.85).mean()
     print(f"\nfraction of runs with coverage >= 0.85: {ok.to_dict()}")
     print("wrote figures/allruns.png, tables/allruns.csv")
     return table

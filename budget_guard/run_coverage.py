@@ -22,9 +22,9 @@ from .conformal import (
     constant_quantile,
     cqr_split,
     dtaci,
-    spci,
     split_conformal_absres,
     tune_gamma,
+    windowed_cqr,
 )
 from .conformal import _finite_sample_quantile
 from .data import ENVS, load_agent_estimates, load_env
@@ -55,7 +55,7 @@ METHOD_COLORS = {
     "split-CQR": AQUA,
     "guard+self-est": ORANGE,
     "ACI-CQR": YELLOW,
-    "SPCI": VIOLET,
+    "windowed-CQR": VIOLET,
     "DtACI": GREEN,
 }
 
@@ -78,7 +78,7 @@ def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]
     intervals["split-CQR"] = cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2]
     gte = groups[te]  # rollout-safe revelation: labels enter only at rollout boundaries
     intervals["ACI-CQR"] = aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2]
-    intervals["SPCI"] = spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2]
+    intervals["windowed-CQR"] = windowed_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2]
     intervals["DtACI"] = dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2]
 
     if est is not None:

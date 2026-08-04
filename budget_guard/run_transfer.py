@@ -6,7 +6,7 @@ logged claude-opus-4.7 SWE-bench runs. The deployed agent is then a *different*
 model, so no labels from the new distribution exist at time zero — but every
 completed run reveals its label, and the online methods consume them.
 
-Frozen split-CQR (never updates) vs ACI-CQR, SPCI, and parameter-free DtACI
+Frozen split-CQR (never updates) vs ACI-CQR, windowed-CQR, and parameter-free DtACI
 (adapt online, rollout-safe label revelation) on each target model's stream.
 
 Five seeds with rollout cluster-bootstrap CIs, matching run_transfer_env and the
@@ -26,7 +26,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, spci, tune_gamma
+from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, windowed_cqr, tune_gamma
 from .extract import flatten_to_samples, load_rollouts, samples_to_dataframe
 from .features import build_xy
 from .metrics import (
@@ -102,7 +102,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
             for name, (lo, hi) in {
                 "split-CQR (frozen)": cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2],
                 "ACI-CQR": aci_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, gamma=gamma, groups=gte)[:2],
-                "SPCI": spci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
+                "windowed-CQR": windowed_cqr(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
                 "DtACI": dtaci(Xtr, ytr, Xca, yca, Xte, yte, alpha=alpha, groups=gte)[:2],
             }.items():
                 draws = rollout_bootstrap_draws(yte, lo, hi, gte, seed=seed)
@@ -164,8 +164,8 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    methods = ["split-CQR (frozen)", "ACI-CQR", "SPCI", "DtACI"]
-    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "SPCI": VIOLET, "DtACI": GREEN}
+    methods = ["split-CQR (frozen)", "ACI-CQR", "windowed-CQR", "DtACI"]
+    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "windowed-CQR": VIOLET, "DtACI": GREEN}
     models = list(dict.fromkeys(table["target_model"]))
     xs = np.arange(len(models))
 

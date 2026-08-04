@@ -144,6 +144,12 @@ def aci_cqr(
     a rollout's errors are buffered and applied only at the next rollout boundary
     — the level is frozen within a rollout, because remaining-to-completion labels
     do not exist until the rollout ends. ``groups=None`` = per-step revelation.
+
+    Deviation from canonical ACI (decision 2026-08-02): when alpha_t >= 1 the
+    canonical algorithm emits an EMPTY interval; we clamp the quantile lookup at
+    0.999 and emit a finite interval instead. This is safe-side only (coverage
+    and the error feedback can only be more conservative); state it in the paper
+    rather than silently diverging.
     """
     mlo, mhi = _fit_cqr(X_train, y_train, alpha)
     cal_scores = np.sort(_cqr_scores(mlo.predict(X_cal), mhi.predict(X_cal), y_cal))
@@ -178,12 +184,18 @@ def aci_cqr(
     return _clip_nonneg(lo), hi, {"gamma": gamma, "alpha_path": alphas, "frac_inf": frac_inf}
 
 
-def spci(
+def windowed_cqr(
     X_train, y_train, X_cal, y_cal, X_test, y_test,
     alpha=DEFAULT_ALPHA, window: int = 100,
     groups=None,
 ):
-    """Windowed sequential conformal (SPCI-style).
+    """Windowed online conformal on CQR scores.
+
+    Naming (decision 2026-08-02): earlier notes and tables called this "SPCI".
+    That overclaims — SPCI (Xu & Xie 2023) fits a quantile regression on the
+    residual series; this method keeps a rolling window of conformity scores and
+    reads the empirical quantile off it. Public label is now "windowed-CQR";
+    cite SPCI as inspiration, never as the implemented method.
 
     Keeps the most recent ``window`` conformity scores — warm-started from CAL —
     and reads the interval half-width off that window's empirical quantile, so the
@@ -191,8 +203,6 @@ def spci(
     CAL distribution). With ``groups`` (rollout ids aligned to the test rows), a
     rollout's scores enter the window atomically at its boundary — no prefix sees
     a same-rollout label, which is unobservable until the rollout ends.
-    Simplification vs. full SPCI: empirical window quantiles in place of a
-    quantile regression on the residual series.
     """
     mlo, mhi = _fit_cqr(X_train, y_train, alpha)
     recent = deque(
@@ -220,6 +230,9 @@ def spci(
         else:
             pending.append(score_t)
     return _clip_nonneg(lo), hi, {"window": window}
+
+
+spci = windowed_cqr  # backward-compatible alias (pre-2026-08-02 name)
 
 
 def mondrian_cqr(

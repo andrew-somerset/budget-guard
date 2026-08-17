@@ -115,7 +115,7 @@ repro-paper: build outdirs
 	$(MAKE) check-numbers
 	$(PYTHON) scripts/check_paper_numbers.py
 
-# Verifies headline numbers quoted in notes/ against the generated tables. Runs on the
+# Verifies headline numbers against the generated tables. Runs on the
 # host (it only reads CSVs) so it works without Docker.
 check-numbers:
 	@test -n "$(PYTHON)" || { echo "No python found on PATH. Activate your env, or: make check-numbers PYTHON=/path/to/python"; exit 1; }

@@ -28,7 +28,7 @@
 #     -H "Accept: application/vnd.oci.image.index.v1+json" \
 #     https://registry-1.docker.io/v2/library/python/manifests/3.12-slim-bookworm \
 #     | grep -i docker-content-digest
-# ...then re-run the full suite and record any numeric drift in notes/robustness_progress.md.
+# ...then re-run the full suite and record any numeric drift.
 #
 # --platform=linux/amd64 makes x86-64 Linux the single reference architecture. Without
 # it, an Apple Silicon machine builds an arm64 image and gets different compiled numpy /

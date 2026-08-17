@@ -15,7 +15,7 @@
 # — and CI's "is the lockfile stale?" check would fail every time any of the 30-odd
 # transitive dependencies cut a release, for no real reason. The cutoff makes the
 # resolution a pure function of this file. Bump it deliberately when upgrading, then
-# rebuild, re-run the suite, and record any numeric drift in notes/robustness_progress.md.
+# rebuild, re-run the suite, and record any numeric drift.
 # Build backend, pinned so the editable install of budget-guard itself needs no
 # network access and no unpinned build-isolation download at image build time.
 setuptools==83.0.0

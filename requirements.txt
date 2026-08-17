@@ -3,7 +3,7 @@
 # these are the exact versions every reported number in notes/week*.md was
 # re-derived against during the robustness pass. To upgrade deliberately: bump
 # versions in a dedicated commit, re-run the full test suite + headline tables,
-# and note any numeric drift in notes/robustness_progress.md.
+# and note any numeric drift.
 pandas==3.0.3
 numpy==2.5.1
 scikit-learn==1.9.0

@@ -55,6 +55,7 @@ help:
 	@echo "make repro   regenerate all figures/ and tables/ inside the container"
 	@echo "make repro-all  ...plus every remaining reported table (slow)"
 	@echo "make check-numbers  verify the paper's headline numbers against tables/"
+	@echo "make doctor  diagnose why a reproduction run differs (git/data/env/tables)"
 	@echo "make shell   interactive shell inside the container"
 	@echo "make digest  print the current upstream digest of the base image tag"
 
@@ -97,6 +98,12 @@ repro-all: build outdirs
 check-numbers:
 	@test -n "$(PYTHON)" || { echo "No python found on PATH. Activate your env, or: make check-numbers PYTHON=/path/to/python"; exit 1; }
 	$(PYTHON) scripts/check_headline_numbers.py
+
+# Diagnoses reproduction differences in THIS environment (host or container) —
+# run it wherever you ran the experiments that gave unexpected numbers.
+doctor:
+	@test -n "$(PYTHON)" || { echo "No python found on PATH. Activate your env, or: make doctor PYTHON=/path/to/python"; exit 1; }
+	$(PYTHON) scripts/repro_doctor.py
 
 shell: build outdirs
 	docker run --rm -it --platform=linux/amd64 $(MOUNTS) $(IMAGE) bash

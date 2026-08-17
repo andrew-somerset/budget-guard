@@ -4,7 +4,7 @@ The paper's artifact: wrap any agent loop with a training-free monitor that, eac
 turn, emits a **calibrated interval on remaining budget** and an **abort
 recommendation** — no LLM fine-tuning. It is calibrated purely from completed runs
 (CAL logs) and, in online mode, self-recalibrates from the deployment stream's own
-finished runs (the transfer-robust story from ``notes/positioning.md``).
+finished runs.
 
     from budget_guard.extract import samples_to_dataframe, flatten_to_samples, load_rollouts
     from budget_guard.guard import BudgetGuard

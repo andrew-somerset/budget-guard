@@ -54,7 +54,7 @@ help:
 	@echo "make fetch   download the revision-pinned BAGEN subset into ./data"
 	@echo "make repro   regenerate all figures/ and tables/ inside the container"
 	@echo "make repro-all  ...plus every remaining reported table (slow)"
-	@echo "make check-numbers  verify notes/ headline numbers against tables/"
+	@echo "make check-numbers  verify headline numbers against tables/"
 	@echo "make shell   interactive shell inside the container"
 	@echo "make digest  print the current upstream digest of the base image tag"
 
@@ -79,7 +79,7 @@ fetch: build
 	docker run --rm --platform=linux/amd64 $(MOUNTS_FETCH) $(IMAGE) python scripts/fetch_bagen.py
 
 # The canonical regeneration path: same container, same seeds, same data revision.
-# Immediately re-checks the regenerated tables against the numbers quoted in notes/, so a
+# Immediately re-checks the regenerated tables against the headline numbers, so a
 # run that moves a headline number cannot pass unnoticed.
 repro: build outdirs
 	docker run --rm --platform=linux/amd64 $(MOUNTS) $(IMAGE) python -m budget_guard.run_final
@@ -92,7 +92,7 @@ repro-all: build outdirs
 	docker run --rm --platform=linux/amd64 $(MOUNTS) $(IMAGE) python -m budget_guard.run_final --full
 	$(MAKE) check-numbers
 
-# Verifies headline numbers quoted in notes/ against the generated tables. Runs on the
+# Verifies headline numbers against the generated tables. Runs on the
 # host (it only reads CSVs) so it works without Docker.
 check-numbers:
 	@test -n "$(PYTHON)" || { echo "No python found on PATH. Activate your env, or: make check-numbers PYTHON=/path/to/python"; exit 1; }

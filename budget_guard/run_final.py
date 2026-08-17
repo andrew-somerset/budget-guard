@@ -97,7 +97,7 @@ def _has_multimodel_data() -> bool:
 def _remaining_tables() -> None:
     """Every reported table not covered by the headline set above.
 
-    Kept behind --full: these back claims in notes/ and the methods section but do not
+    Kept behind --full: these back claims in the methods section but do not
     produce write-up figures, and the loop stress sweep dominates total runtime.
     """
     print("\n--- external-budget transfer + methods tables ---")

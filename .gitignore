@@ -37,3 +37,7 @@ neurips_2026.tex
 neurips_2026.sty
 checklist.tex
 paper/methodology_draft.md
+
+# Local tooling and OS clutter
+.claude/
+.DS_Store

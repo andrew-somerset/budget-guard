@@ -16,9 +16,8 @@ swebench origin trajectories); skipped with a printed notice otherwise:
 
 With --full, additionally regenerates every remaining reported table: external-budget
 transfer, censored rungs, conditional coverage, per-env economics / cost-of-pass /
-gap / label-efficiency, and the three loop-layer drivers. Split out because the loop
-stress sweep alone is 4 windows x 10 order seeds and dominates the runtime — the
-default set is what the write-up's figures come from.
+gap / label-efficiency. The default set is what the write-up's headline figures
+come from; --full is everything the paper reports.
 
 Usage: python -m budget_guard.run_final [--full]
 """
@@ -38,9 +37,6 @@ from . import (
     run_gap,
     run_gated,
     run_label_efficiency,
-    run_loop_closed_loop,
-    run_loop_stress,
-    run_loop_validation,
     run_multiresource,
     run_transfer,
     run_transfer_env,
@@ -97,8 +93,8 @@ def _has_multimodel_data() -> bool:
 def _remaining_tables() -> None:
     """Every reported table not covered by the headline set above.
 
-    Kept behind --full: these back claims in the methods section but do not
-    produce write-up figures, and the loop stress sweep dominates total runtime.
+    Kept behind --full: these back the paper's methods and appendix claims but do
+    not produce the headline figures.
     """
     print("\n--- external-budget transfer + methods tables ---")
     run_transfer_warehouse.main(seeds=SEEDS)     # transfer_warehouse{,_per_seed}
@@ -112,11 +108,6 @@ def _remaining_tables() -> None:
     for env in ("sokoban", "searchr1", "swebench"):
         run_gap.run(env)                         # gap_<env> (single-seed diagnostic)
     run_label_efficiency.run("sokoban", seeds=SEEDS)  # label_efficiency_sokoban
-
-    print("\n--- loop layer ---")
-    run_loop_validation.main(resume=True)        # loop_validation{,_per_seed}
-    run_loop_stress.main(resume=True)            # loop_stress{,_raw}
-    run_loop_closed_loop.main(seeds=SEEDS)       # loop_closed_loop{,_per_seed}
 
 
 def main(full: bool = False) -> None:

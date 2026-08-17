@@ -27,7 +27,6 @@ jobs:
       - name: Run no-data demos
         run: |
           python examples/quickstart.py
-          python examples/loop_quickstart.py
 
   # Proves the reproducibility image still builds and still passes. Without this the
   # Dockerfile rots silently: the first dependency change that breaks the build would
@@ -61,4 +60,3 @@ jobs:
       - name: Run no-data demos inside the container
         run: |
           docker run --rm --platform=linux/amd64 budget-guard python examples/quickstart.py
-          docker run --rm --platform=linux/amd64 budget-guard python examples/loop_quickstart.py

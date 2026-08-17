@@ -65,8 +65,7 @@ C3 is the frontier; C4 prices the operating point.
 
 Transfer (deployment shift) should lead the paper. Warehouse abort + cost-of-pass
 lead the economics. Honest limits: logged (counterfactual-free) evaluation;
-closed-loop selection bias; SWE-bench cap strength; do not headline un-audited
-online-joint window=10 numbers as calibrated 0.90 intervals.
+closed-loop selection bias; SWE-bench cap strength.
 
 ## Reproduce
 

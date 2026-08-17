@@ -82,75 +82,7 @@ calibration: all prefixes in a rollout are predicted first, and the three-resour
 window updates only after that rollout finishes. It writes aggregate and per-seed CSVs plus
 `figures/transfer_warehouse.png`. Data and generated artifacts are gitignored by design.
 
-## Generic loop-engineering API (development)
-
-`LoopBudgetGuard` is the task-neutral resource-control layer. It works with any
-long-running loop whose additive resources can be measured per step and whose naturally
-completed runs reveal final totals:
-
-```python
-from budget_guard import LoopBudgetGuard, ResourceSpec
-
-resources = (
-  ResourceSpec("tokens", "tokens", 8_000),
-  ResourceSpec("usd", "USD", 3.00),
-  ResourceSpec("seconds", "seconds", 600),
-)
-
-# completed_traces use the framework-neutral RunStart/StepUsage/RunFinish schema
-guard = LoopBudgetGuard.from_traces(completed_traces)
-guard.start("task-123", resources, {"task_type": "coding"})
-
-decision = guard.after_step(
-  {"tokens": 420, "usd": 0.06, "seconds": 18},
-  {"tests_passing": 7},
-)
-print(decision.action, decision.intervals, decision.reasons)
-
-if decision.should_stop:
-  guard.abort(decision.action.value)  # never invents an unobserved completion label
-else:
-  guard.finish(success=True)          # updates only after natural completion
-```
-
-The estimator and intervention policy are separate. The default policy recommends
-`continue`, `replan`, `reduce_scope`, `ask_human`, `pause`, or `abort`; it does not perform
-side effects. A low shifted feasibility score escalates to a human by default rather than
-auto-aborting. With too little evidence for a finite 90% interval, the guard fails safe to
-open intervals and recommends pausing.
-
-Telemetry adapters are dependency-free: `OpenAIUsageAdapter`, `LangChainUsageAdapter`,
-and `MappingUsageAdapter`. Pricing is caller-supplied, avoiding stale provider prices.
-Delayed authoritative usage can replace an earlier estimate via `guard.correct_usage(...)`
-without double-counting.
-
-Run the no-data three-resource demo:
-
-```bash
-python examples/loop_quickstart.py
-```
-
-Run the cross-family, order/window, and closed-loop evaluations:
-
-```bash
-python -m budget_guard.run_loop_validation
-python -m budget_guard.run_loop_stress
-python -m budget_guard.run_loop_closed_loop
-```
-
-Or regenerate all generic-loop evidence and a SHA-256 output manifest in one command:
-
-```bash
-python scripts/run_loop_artifact.py --quick  # development smoke
-python scripts/run_loop_artifact.py --full   # submission evidence grid
-```
-
-**Scope:** validated on BAGEN token tasks, BAGEN Warehouse, and a non-agent sequential-
-text pipeline smoke test. The source-text case proves software generality, not agent-domain
-performance. This is not yet evidence from a second independent agent benchmark or live
-production deployment.
-
-## Specialized token wrapper (original API)
+## The BudgetGuard wrapper
 
 `BudgetGuard` is the drop-in artifact: wrap any agent loop with a **training-free**
 monitor that, each turn, returns a calibrated interval on remaining budget and an
@@ -196,11 +128,6 @@ See [`examples/quickstart.py`](examples/quickstart.py) and the tests in
 budget_guard/   # the offline conformal infrastructure (the critical path)
   extract.py    # Week 1: rollout JSON -> (prefix, x_t, y_t)
   guard.py      # original token-only BudgetGuard
-  loop_schema.py      # task-neutral events + validated resource ledger
-  loop_features.py    # generic prefix-only resource/progress features
-  loop_guard.py       # stateful multi-resource live guard
-  loop_policy.py      # intervention recommendations (separate from estimator)
-  loop_adapters.py    # framework telemetry translation only
   data_dictionary.md
 docs/           # results write-up
 paper/          # related-work note

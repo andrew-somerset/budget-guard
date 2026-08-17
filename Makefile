@@ -45,15 +45,16 @@ MOUNTS_FETCH := -v "$(CURDIR)/data:/app/data"
 outdirs:
 	@mkdir -p "$(CURDIR)/figures" "$(CURDIR)/tables"
 
-.PHONY: help lock build test fetch repro repro-all shell digest check-numbers outdirs
+.PHONY: help lock build test fetch repro repro-all repro-paper doctor shell digest check-numbers outdirs
 
 help:
 	@echo "make lock    regenerate requirements.lock.txt (needs uv, runs on host)"
 	@echo "make build   build the pinned image"
 	@echo "make test    run the full test suite inside the container"
 	@echo "make fetch   download the revision-pinned BAGEN subset into ./data"
-	@echo "make repro   regenerate all figures/ and tables/ inside the container"
-	@echo "make repro-all  ...plus every remaining reported table (slow)"
+	@echo "make repro   regenerate the headline figures/ and tables/ inside the container"
+	@echo "make repro-paper  regenerate + verify EVERYTHING the paper uses (tables, figures, both checkers)"
+	@echo "make repro-all  THE RUN-ALL BUTTON: every figure and table in the repo, then both checkers (slow)"
 	@echo "make check-numbers  verify the paper's headline numbers against tables/"
 	@echo "make doctor  diagnose why a reproduction run differs (git/data/env/tables)"
 	@echo "make shell   interactive shell inside the container"
@@ -80,18 +81,39 @@ fetch: build
 	docker run --rm --platform=linux/amd64 $(MOUNTS_FETCH) $(IMAGE) python scripts/fetch_bagen.py
 
 # The canonical regeneration path: same container, same seeds, same data revision.
-# Immediately re-checks the regenerated tables against the numbers quoted in notes/, so a
-# run that moves a headline number cannot pass unnoticed.
+# Immediately re-checks the regenerated tables against the paper's headline numbers,
+# so a run that moves one cannot pass unnoticed.
 repro: build outdirs
 	docker run --rm --platform=linux/amd64 $(MOUNTS) $(IMAGE) python -m budget_guard.run_final
 	$(MAKE) check-numbers
 
 # Everything `repro` covers, plus every remaining reported table (external-budget
-# transfer, censored rungs, conditional coverage, per-env economics, the loop layer).
-# Substantially slower — the loop stress sweep is 4 windows x 10 order seeds.
+# transfer, censored rungs, conditional coverage, per-env economics, diagnostics)
+# and all three script-drawn figures, then both checkers. The run-all button.
 repro-all: build outdirs
-	docker run --rm --platform=linux/amd64 $(MOUNTS) $(IMAGE) python -m budget_guard.run_final --full
+	docker run --rm --platform=linux/amd64 $(MOUNTS) $(IMAGE) sh -c "\
+		python -m budget_guard.run_final --full && \
+		python scripts/make_pipeline_figure.py && \
+		python scripts/make_costofpass_figure.py && \
+		python scripts/run_closed_loop.py"
 	$(MAKE) check-numbers
+	$(PYTHON) scripts/check_paper_numbers.py
+
+# THE PAPER SET: regenerate every table and every figure the submission embeds —
+# the headline set, the three remaining paper tables (Warehouse model swap,
+# censored calibration, conditional coverage), and the two script-drawn figures
+# (pipeline diagram, cost-of-pass frontier) — then verify all 11 headline claims
+# and all 35 paper claims. repro-all additionally covers appendix diagnostics.
+repro-paper: build outdirs
+	docker run --rm --platform=linux/amd64 $(MOUNTS) $(IMAGE) sh -c "\
+		python -m budget_guard.run_final && \
+		python -m budget_guard.run_transfer_warehouse && \
+		python -m budget_guard.run_censored && \
+		python -m budget_guard.run_conditional && \
+		python scripts/make_pipeline_figure.py && \
+		python scripts/make_costofpass_figure.py"
+	$(MAKE) check-numbers
+	$(PYTHON) scripts/check_paper_numbers.py
 
 # Verifies headline numbers quoted in notes/ against the generated tables. Runs on the
 # host (it only reads CSVs) so it works without Docker.

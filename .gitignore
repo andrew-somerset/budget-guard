@@ -30,3 +30,10 @@ Thumbs.db
 
 # Checkpoint fingerprints (machine-state sidecars, regenerated every run)
 tables/*.fingerprint.json
+
+# Paper working documents and templates — never commit (double-blind: filenames alone can deanonymize)
+*.docx
+neurips_2026.tex
+neurips_2026.sty
+checklist.tex
+paper/methodology_draft.md

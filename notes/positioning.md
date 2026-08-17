@@ -107,8 +107,7 @@ motivates an off-policy correction as the key next step for any deployment claim
 
 ## Robustness pass — results
 
-Outcome of the automated robustness loop (see `notes/robustness_progress.md` for the
-per-item log + exact reproduce commands). Verified this pass on the 3 opus runs available
+Outcome of the automated robustness loop. Verified this pass on the 3 opus runs available
 locally; tables needing the full 19-run × multi-model download are flagged DATA-BLOCKED.
 
 **Verified reproductions (re-derived this pass, not just quoted).** C1 coverage reproduces
@@ -180,8 +179,7 @@ correction is the deployment next-step.
 × multi-model BAGEN download was fetched and both the all-19 breadth table (`run_allruns`,
 19/19 rows — split-CQR/SPCI/DtACI all clear 0.85 on the great majority of runs) and the
 model-swap transfer bars (`run_transfer`, 4/4 target models — frozen split-CQR collapses
-to 0.38–0.76, SPCI recovers to 0.91–0.93 at 0% unbounded) are now complete; see
-`notes/robustness_progress.md`'s 2026-07-20 entry for the full numbers. Still PI-BLOCKED:
+to 0.38–0.76, SPCI recovers to 0.91–0.93 at 0% unbounded) are now complete. Still PI-BLOCKED:
 the censored-conformal next increment (gated-IPCW / positivity — proposal in the progress
 log) and whether the by-depth cut belongs on the warehouse tables. **Also resolved
 2026-07-20**: the internal-vs-external transfer gap now has a first answer —
@@ -209,7 +207,7 @@ conformal collapses under shift, deployment-faithful online conformal recovers m
 (0.10 → 0.80) with finite intervals — consistent with the rollout-safe Warehouse adaptive
 joint (0.86–0.88). The residual gap to nominal motivates the PI-scoped methods increment
 (rollout-count windows / unified calibrator; any new window chosen on CAL only,
-predeclared). Details + full tables: notes/robustness_progress.md 2026-07-21 entry.
+predeclared). Details live in the generated `tables/` after a re-run.
 
 ## Decisions adopted 2026-08-02 (decision log — revisitable, but the write-up proceeds on these)
 

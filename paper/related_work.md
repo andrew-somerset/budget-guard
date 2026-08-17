@@ -36,7 +36,7 @@ IDs once at camera-ready.
 - Romano, Patterson, Candès. *Conformalized Quantile Regression.* NeurIPS 2019. arXiv:1905.03222.
 - Gibbs, Candès. *Adaptive Conformal Inference Under Distribution Shift.* NeurIPS 2021. arXiv:2106.00170.
 - Gibbs, Candès. *Conformal Inference for Online Prediction with Arbitrary Distribution Shifts.* JMLR 2024. arXiv:2208.08401. (DtACI)
-- Zaffran, Dieuleveut, Féron, Goude, Josse. *Adaptive Conformal Predictions for Time Series.* ICML 2022. arXiv:2202.07282. (AgACI; author order verified against arXiv — see paper/references.md)
+- Zaffran, Dieuleveut, Féron, Goude, Josse. *Adaptive Conformal Predictions for Time Series.* ICML 2022. arXiv:2202.07282. (AgACI; author order verified against arXiv)
 - Xu, Xie. *Sequential Predictive Conformal Inference for Time Series.* ICML 2023. arXiv:2212.03463. (SPCI)
 - Angelopoulos, Bates. *A Gentle Introduction to Conformal Prediction and Distribution-Free Uncertainty Quantification.* arXiv:2107.07511.
 - Messoudi, Destercke, Rousseau. *Copula-based Conformal Prediction for Multi-Target Regression.* Pattern Recognition 2021. arXiv:2101.12002.

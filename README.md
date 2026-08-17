@@ -5,9 +5,8 @@ wrapper that outputs calibrated prediction intervals on an agent's *remaining bu
 (tokens / $ / time) via online conformal prediction. Built on the logged rollouts from
 **BAGEN** (arXiv:2606.00198).
 
-**CPU-only Python** — no `verl`, no `vllm`, no GPU. Architecture + current status:
-[`docs/architecture_decision_map.md`](docs/architecture_decision_map.md) and
-[`notes/current_state.md`](notes/current_state.md).
+**CPU-only Python** — no `verl`, no `vllm`, no GPU. Headline results:
+[`docs/results_explained.md`](docs/results_explained.md).
 
 ## Setup
 
@@ -172,9 +171,9 @@ budget_guard/   # the offline conformal infrastructure (the critical path)
   loop_policy.py      # intervention recommendations (separate from estimator)
   loop_adapters.py    # framework telemetry translation only
   data_dictionary.md
-notes/          # research_log (weeks 1-6) + robustness_progress (the reproduced-number log)
-docs/           # architecture & decision map
-paper/          # write-up material: related-work table + verified references
+notes/          # positioning note
+docs/           # results write-up
+paper/          # related-work note
 ```
 
 ## Sync model

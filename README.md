@@ -202,7 +202,7 @@ budget_guard/   # the offline conformal infrastructure (the critical path)
   loop_policy.py      # intervention recommendations (separate from estimator)
   loop_adapters.py    # framework telemetry translation only
   data_dictionary.md
-notes/          # positioning note
+notes/          # research log (weeks 1-6), positioning + decision log, robustness log
 docs/           # results write-up
 paper/          # related-work note
 ```

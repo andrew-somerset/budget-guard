@@ -3,7 +3,7 @@
 Faithful port of the prefix -> (x_t, y_t) logic in
 ``ragen/env/token_estimation/env.py`` (``_flatten_rollouts``). NO ``ragen``/``verl`` import,
 so it runs on plain CPU Python (Windows / Mac / Colab). Validated once against the official
-harness on Colab — 0 mismatches (Week 1; see ``notes/research_log.md``); the diff catches
+harness on Colab — 0 mismatches (Week 1); the diff catches
 any token-bookkeeping edge cases.
 """
 from __future__ import annotations

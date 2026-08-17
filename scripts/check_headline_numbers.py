@@ -1,6 +1,10 @@
-"""Verify that headline numbers quoted in notes/ still match the generated tables.
+"""Verify that the project's headline numbers still match the generated tables.
 
-Motivation: on 2026-08-01 four separate figures in notes/current_state.md were found to
+The claims below are the ones quoted in the paper (and originally in the internal
+research notes, now archived on the internal-notes branch). Each entry records its
+provenance so a failure points at the claim to fix, not just the table.
+
+Motivation: on 2026-08-01 four separate stale figures were found in a hand-written summary to
 be stale — three transfer coverages left over from before the rollout-safe revelation fix
 (which had a correction banner directly above them that the body never absorbed), plus a
 test count and a data size. Nothing was wrong with the code; a hand-written summary had

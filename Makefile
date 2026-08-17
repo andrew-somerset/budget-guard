@@ -54,7 +54,7 @@ help:
 	@echo "make fetch   download the revision-pinned BAGEN subset into ./data"
 	@echo "make repro   regenerate all figures/ and tables/ inside the container"
 	@echo "make repro-all  ...plus every remaining reported table (slow)"
-	@echo "make check-numbers  verify notes/ headline numbers against tables/"
+	@echo "make check-numbers  verify the paper's headline numbers against tables/"
 	@echo "make shell   interactive shell inside the container"
 	@echo "make digest  print the current upstream digest of the base image tag"
 

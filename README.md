@@ -35,8 +35,8 @@ count that floating-point summation order depends on:
 ```bash
 make build          # digest-pinned python:3.12-slim, linux/amd64
 make test           # full suite inside the container
-make repro          # regenerate figures/ + tables/, then re-check notes/ claims
-make check-numbers  # verify notes/ headline numbers against tables/ (no Docker needed)
+make repro          # regenerate figures/ + tables/, then re-check the headline numbers
+make check-numbers  # verify the paper's headline numbers against tables/ (no Docker needed)
 ```
 
 Verified 2026-08-01: the container reproduces `tables/transfer_env.csv` from a macOS
@@ -202,7 +202,6 @@ budget_guard/   # the offline conformal infrastructure (the critical path)
   loop_policy.py      # intervention recommendations (separate from estimator)
   loop_adapters.py    # framework telemetry translation only
   data_dictionary.md
-notes/          # research log (weeks 1-6), positioning + decision log, robustness log
 docs/           # results write-up
 paper/          # related-work note
 ```

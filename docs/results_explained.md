@@ -2,8 +2,8 @@
 
 Short guide to the headline figures/tables: what they show and why they matter for
 the write-up. **Authoritative numbers live in the generated `tables/`.** A 2026-07-21
-audit retracted per-prefix “SPCI self-heals to 0.90”; rollout-safe evaluation is the
-claim to cite.
+audit retracted the per-prefix “self-heals to 0.90” claim; rollout-safe evaluation is
+the claim to cite.
 
 **Claim in one line.** A training-free conformal wrapper turns logged-agent budget
 signals into calibrated remaining-budget intervals that adapt under deployment shift,
@@ -35,7 +35,7 @@ under-coverage.
 
 **Transfer.** Frozen split-CQR collapses under model/env swap. Online methods recover
 much of the coverage using only labels a deployed guard could observe. Cite
-rollout-safe numbers (cross-env SPCI recovery **0.80** at 0% unbounded, not 0.90).
+rollout-safe numbers (cross-env windowed-CQR recovery **0.80** at 0% unbounded, not 0.90).
 ACI can look covered while emitting many unbounded
 intervals.
 

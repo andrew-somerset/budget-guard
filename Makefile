@@ -45,7 +45,7 @@ MOUNTS_FETCH := -v "$(CURDIR)/data:/app/data"
 outdirs:
 	@mkdir -p "$(CURDIR)/figures" "$(CURDIR)/tables"
 
-.PHONY: help lock build test fetch repro repro-all repro-paper doctor shell digest check-numbers outdirs
+.PHONY: help lock build test fetch repro repro-all repro-paper doctor clean shell digest check-numbers outdirs
 
 help:
 	@echo "make lock    regenerate requirements.lock.txt (needs uv, runs on host)"
@@ -57,6 +57,7 @@ help:
 	@echo "make repro-all  THE RUN-ALL BUTTON: every figure and table in the repo, then both checkers (slow)"
 	@echo "make check-numbers  verify the paper's headline numbers against tables/"
 	@echo "make doctor  diagnose why a reproduction run differs (git/data/env/tables)"
+	@echo "make clean   delete generated figures/ and tables/ so the next run starts fresh"
 	@echo "make shell   interactive shell inside the container"
 	@echo "make digest  print the current upstream digest of the base image tag"
 
@@ -95,9 +96,9 @@ repro-all: build outdirs
 		python -m budget_guard.run_final --full && \
 		python scripts/make_pipeline_figure.py && \
 		python scripts/make_costofpass_figure.py && \
-		python scripts/run_closed_loop.py"
-	$(MAKE) check-numbers
-	$(PYTHON) scripts/check_paper_numbers.py
+		python scripts/run_closed_loop.py && \
+		python scripts/check_headline_numbers.py && \
+		python scripts/check_paper_numbers.py"
 
 # THE PAPER SET: regenerate every table and every figure the submission embeds —
 # the headline set, the three remaining paper tables (Warehouse model swap,
@@ -111,15 +112,25 @@ repro-paper: build outdirs
 		python -m budget_guard.run_censored && \
 		python -m budget_guard.run_conditional && \
 		python scripts/make_pipeline_figure.py && \
-		python scripts/make_costofpass_figure.py"
-	$(MAKE) check-numbers
-	$(PYTHON) scripts/check_paper_numbers.py
+		python scripts/make_costofpass_figure.py && \
+		python scripts/check_headline_numbers.py && \
+		python scripts/check_paper_numbers.py"
 
 # Verifies headline numbers quoted in notes/ against the generated tables. Runs on the
 # host (it only reads CSVs) so it works without Docker.
 check-numbers:
 	@test -n "$(PYTHON)" || { echo "No python found on PATH. Activate your env, or: make check-numbers PYTHON=/path/to/python"; exit 1; }
 	$(PYTHON) scripts/check_headline_numbers.py
+
+# Removes generated outputs. Figures are wholly regenerable; tables are tracked in git,
+# so this deletes them from the working tree and `git checkout tables/` restores the
+# committed copies. Use before a full run to guarantee no output is a stale leftover:
+# three drivers write only to figures/final/, so an old top-level copy of those figures
+# would otherwise survive a regeneration and sit next to the fresh ones.
+clean:
+	rm -rf "$(CURDIR)/figures"
+	rm -f "$(CURDIR)"/tables/*.csv "$(CURDIR)"/tables/*.fingerprint.json
+	@echo "cleaned figures/ and tables/ — 'git checkout tables/' restores committed tables"
 
 # Diagnoses reproduction differences in THIS environment (host or container) —
 # run it wherever you ran the experiments that gave unexpected numbers.

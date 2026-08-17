@@ -1,138 +1,129 @@
 # budget-guard
 
-Distribution-free, multi-resource **budget guards** for long-horizon agents: a training-free
-wrapper that outputs calibrated prediction intervals on an agent's *remaining budget*
-(tokens / $ / time) via online conformal prediction. Built on the logged rollouts from
-**BAGEN** (arXiv:2606.00198).
+Training-free, distribution-free **budget guards** for long-horizon LLM agents. Wrap any
+agent loop in a monitor that returns, at every turn, a *calibrated* prediction interval on
+the resources the run still needs (tokens / dollars / time) plus an abort decision — using
+online conformal prediction, with no fine-tuning, no logits, and no GPU.
 
-**CPU-only Python** — no `verl`, no `vllm`, no GPU. Headline results:
+Built on the logged rollouts from **BAGEN** (arXiv:2606.00198). Results summary:
 [`docs/results_explained.md`](docs/results_explained.md).
 
-## Setup
-
-```bash
-conda create -n budget python=3.12 -c conda-forge --override-channels -y
-conda activate budget
-conda install -c conda-forge llvm-openmp -y   # macOS: required by lightgbm, see below
-pip install -r requirements.txt
-```
-
-> **macOS: LightGBM needs an OpenMP runtime.** The PyPI `lightgbm` wheel links against
-> `@rpath/libomp.dylib` but does not ship it, so without one `import lightgbm` fails with
-> a `dlopen ... Library not loaded: @rpath/libomp.dylib` error that names no package.
-> `conda install -c conda-forge llvm-openmp` (or `brew install libomp`) fixes it. Linux
-> wheels use the system `libgomp`, which is already present on most distributions — and
-> the container installs it explicitly. There is no pip-only fix: this is a system
-> library, so it cannot be expressed in `requirements.txt` or `pyproject.toml`.
-
-## Reproducible environment (recommended for reproducing reported numbers)
-
-The commands above install into whatever OS and CPU architecture you happen to be on.
-For regenerating reported numbers, use the pinned container instead — it fixes the OS,
-the architecture, the full transitive dependency tree (hash-verified), and the thread
-count that floating-point summation order depends on:
-
-```bash
-make build          # digest-pinned python:3.12-slim, linux/amd64
-make test           # full suite inside the container
-make repro          # regenerate figures/ + tables/, then re-check the headline numbers
-make check-numbers  # verify the paper's headline numbers against tables/ (no Docker needed)
-```
-
-Verified 2026-08-01: the container reproduces `tables/transfer_env.csv` from a macOS
-arm64 host run with every coverage, CI bound, and unbounded-fraction **bit-identical**;
-a single `normalized_width` differs by 1 ULP (2.2e-16), the floor for cross-architecture
-float arithmetic. See `Dockerfile` for why each pin is there.
-
-Dependency changes go through `requirements-repro.in` + `make lock`, never by editing
-`requirements.lock.txt` directly; CI fails if the two drift apart.
-
-## Point at the BAGEN data
-
-The extractor reads BAGEN rollouts. Set `BAGEN_DIR`, or keep the `BAGEN` repo as a sibling
-folder (the default is `../BAGEN`):
-
-```bash
-export BAGEN_DIR=/path/to/BAGEN   # optional; defaults to ../BAGEN
-```
-
-## Run the Week-1 extractor
-
-```bash
-python budget_guard/extract.py                  # uses the bundled _smoke sample
-python budget_guard/extract.py /path/to/dialogues.json
-```
-
-It prints the `(x_t, y_t)` table and runs invariants. Field definitions:
-[`budget_guard/data_dictionary.md`](budget_guard/data_dictionary.md).
-
-## Reproduce the transfer experiments
-
-Fetch the exact pinned BAGEN revision used by the reported tables, then run the internal
-(token) and external (Warehouse) model-swap experiments:
-
-```bash
-python scripts/fetch_bagen.py
-python -m budget_guard.run_transfer
-python -m budget_guard.run_transfer_warehouse
-```
-
-The Warehouse experiment compares frozen baselines with rollout-safe adaptive joint
-calibration: all prefixes in a rollout are predicted first, and the three-resource error
-window updates only after that rollout finishes. It writes aggregate and per-seed CSVs plus
-`figures/transfer_warehouse.png`. Data and generated artifacts are gitignored by design.
-
-## The BudgetGuard wrapper
-
-`BudgetGuard` is the drop-in artifact: wrap any agent loop with a **training-free**
-monitor that, each turn, returns a calibrated interval on remaining budget and an
-abort decision. It calibrates from completed runs only (no LLM fine-tuning) and, in
-online mode, self-recalibrates from the deployment stream's own finished runs.
-
 ```python
-from budget_guard.data import load_env
-from budget_guard.guard import BudgetGuard
+from budget_guard import BudgetGuard
 
-# Calibrate on completed rollouts — training-free, no GPU.
-cal_df, _ = load_env("swebench")
-guard = BudgetGuard.from_logs(cal_df, budget=7060)   # 7060 = swebench context budget
-
-# Monitor a live run: one step() per agent turn.
+guard = BudgetGuard.from_logs(completed_runs, budget=7060)   # calibrate once, no training
 guard.reset()
-for turn_tokens in agent_turn_usage_stream():        # your agent's per-turn usage
+for turn_tokens in agent_turn_usage_stream():
     step = guard.step(turn_tokens)
     print(f"turn {step.k}: remaining budget in [{step.lo:.0f}, {step.hi:.0f}]")
-    if step.abort:                                   # projected spend exceeds budget
+    if step.abort:          # projected spend exceeds the budget
         break
 else:
-    guard.observe()   # run finished cleanly: fold its labels back into calibration
+    guard.observe()         # run finished cleanly: fold its labels back into calibration
 ```
 
-`step()` takes the turn's **history-excluded** total tokens (the `turn_excluding_history`
-accounting the guard was calibrated on).
-
-**Install** the wrapper — numpy/pandas/lightgbm only, no GPU, no API — and run the
-no-data demo (calibrates on synthetic runs, streams a live one):
+## Install
 
 ```bash
 pip install -e .
-python examples/quickstart.py
+python examples/quickstart.py     # runnable demo, no data needed
 ```
 
-See [`examples/quickstart.py`](examples/quickstart.py) and the tests in
-[`tests/test_guard.py`](tests/test_guard.py); no BAGEN data is needed to try the API.
+Dependencies are numpy / pandas / lightgbm / scikit-learn. CPU only.
+
+> **macOS:** LightGBM needs an OpenMP runtime that its PyPI wheel does not ship, so
+> `import lightgbm` fails with `dlopen ... Library not loaded: @rpath/libomp.dylib`.
+> Fix with `conda install -c conda-forge llvm-openmp` or `brew install libomp`. Linux
+> wheels use the system `libgomp` and need nothing extra. This is a system library, so
+> it cannot be expressed in `requirements.txt` or `pyproject.toml`.
+
+## Reproduce the paper
+
+Everything runs inside a digest-pinned container, so results do not depend on which
+machine you are sitting at. Requires Docker.
+
+```bash
+python scripts/fetch_bagen.py   # ~2.7 GB, pinned dataset revision
+make repro-all                  # regenerate EVERY figure and table, then verify
+```
+
+`make repro-all` is the run-all button: it runs every experiment, draws all 20 figures
+and 23 tables, and then machine-verifies the paper's numbers against what it just
+generated — 11 headline claims and all 35 quantitative claims in the paper. It exits
+non-zero if any claim no longer matches.
+
+| command | what it does |
+|---|---|
+| `make repro-all` | **everything**: all experiments, all figures/tables, both checkers |
+| `make repro-paper` | just the set the paper embeds (faster), plus both checkers |
+| `make repro` | the headline figures/tables only |
+| `make test` | the test suite inside the container |
+| `make check-numbers` | verify the paper's headline numbers against `tables/` |
+| `make doctor` | diagnose why a run differs (commit, data, package versions, tables) |
+| `make clean` | delete generated figures/ and tables/ so the next run starts fresh |
+| `make help` | list every target |
+
+**Getting different numbers?** Run `make doctor` first. It checks the things that
+actually cause divergence — running an old commit, an incomplete BAGEN download (the
+experiments silently skip the model-swap and breadth runs on partial data), package
+versions that differ from the lockfile, and unexpected table row counts — and each
+failure names its own fix.
+
+The container reproduces reported numbers bit-identically across host architectures;
+interval widths can differ by one ULP (2.2e-16), the floating-point floor. Dependency
+changes go through `requirements-repro.in` + `make lock`, never by editing
+`requirements.lock.txt`; CI fails if the two drift apart.
+
+## Use your own data
+
+The extractor turns rollout JSON into the `(prefix, x_t, y_t)` table the guard
+calibrates on:
+
+```bash
+python budget_guard/extract.py                      # bundled sample
+python budget_guard/extract.py /path/to/dialogues.json
+```
+
+It prints the table and runs invariant checks. Field definitions:
+[`budget_guard/data_dictionary.md`](budget_guard/data_dictionary.md). To point at a local
+BAGEN checkout, set `BAGEN_DIR` (defaults to `../BAGEN`).
+
+## How it works
+
+At turn *k* the guard sees only the prefix — resources spent so far, burn rate, recent
+per-turn usage, and the agent's own estimate when it emits one. Gradient-boosted quantile
+regression predicts the remaining requirement; conformal calibration turns that into an
+interval with a coverage guarantee. Calibration splits are always **by rollout, never by
+prefix** (prefixes of one rollout share its final total, so splitting them apart leaks
+the answer), and online methods only learn from rollouts that have *finished* — the label
+does not exist before then.
+
+- **Offline:** split conformal, CQR, Mondrian (per-turn-depth) CQR
+- **Online, for deployment shift:** ACI, DtACI, windowed-CQR
+- **Several budgets at once:** Bonferroni and empirical-copula joint intervals
+- **Runs that can no longer finish:** censoring-aware upper bounds behind a feasibility
+  gate, giving a *selective* guarantee (coverage conditional on passing the gate)
+- **Stopping:** abort when the feasibility score crosses a threshold calibrated so the
+  per-run false-abort rate is at most δ
 
 ## Layout
 
 ```
-budget_guard/   # the offline conformal infrastructure (the critical path)
-  extract.py    # Week 1: rollout JSON -> (prefix, x_t, y_t)
-  guard.py      # original token-only BudgetGuard
-  data_dictionary.md
-docs/           # results write-up
-paper/          # related-work note
+budget_guard/    # the library and the experiment drivers
+  extract.py     # rollout JSON -> (prefix, x_t, y_t)
+  guard.py       # the BudgetGuard wrapper
+  conformal.py   # split/CQR/Mondrian + ACI/DtACI/windowed-CQR
+  multiresource.py, censored.py, economic.py
+  run_*.py       # one driver per experiment
+scripts/         # data fetch, figure generators, number checkers, doctor
+tables/          # generated results (committed, so reported numbers are diffable)
+docs/            # results summary
+paper/           # related-work note
 ```
 
-## Sync model
-Code syncs via Git; data + generated figures/tables are gitignored by design —
-regenerate via `scripts/fetch_bagen.py` and the `run_*` scripts.
+Generated figures and the BAGEN data are gitignored by design — regenerate them with
+`make repro-all`.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

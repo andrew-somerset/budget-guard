@@ -96,6 +96,7 @@ def main():
         t.set_color(INK)
 
     fig.tight_layout()
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
     for ext in ("png", "pdf"):
         fig.savefig(f"{OUT}.{ext}", bbox_inches="tight", facecolor="white")
     print(f"wrote {OUT}.png / .pdf")

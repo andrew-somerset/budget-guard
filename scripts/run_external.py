@@ -33,7 +33,8 @@ from budget_guard.conformal import (  # noqa: E402  — unmodified guard (offlin
 from budget_guard.extract import _rough_text_token_count  # noqa: E402  — repo tokenizer
 from budget_guard.features import build_xy  # noqa: E402
 from budget_guard.metrics import (  # noqa: E402
-    marginal_coverage, median_width, normalized_width, rollout_bootstrap_ci,
+    marginal_coverage, median_width, normalized_width,
+    pooled_bootstrap_ci, rollout_bootstrap_draws,
 )
 from budget_guard.split import group_split  # noqa: E402
 
@@ -43,11 +44,19 @@ MIN_TOTAL, MAX_TOTAL = 50, 4000
 
 
 def _collect_files(n_sample: int = 1200, seed: int = 0) -> list[str]:
+    # Both venv layouts (Windows Lib/, POSIX lib/pythonX.Y/) plus the running
+    # interpreter's site-packages as a fallback — the original Windows-only glob
+    # collapsed the corpus to ~44 repo files everywhere else.
+    import sysconfig
+
     pats = [
         os.path.join(REPO, ".venv", "Lib", "site-packages", "**", "*.py"),
+        os.path.join(REPO, ".venv", "lib", "python*", "site-packages", "**", "*.py"),
         os.path.join(REPO, "budget_guard", "*.py"),
         os.path.join(REPO, "notes", "*.md"),
     ]
+    if not glob.glob(pats[0]) and not glob.glob(pats[1], recursive=True):
+        pats.append(os.path.join(sysconfig.get_paths()["purelib"], "**", "*.py"))
     files = sorted({f for p in pats for f in glob.glob(p, recursive=True)})
     rng = np.random.default_rng(seed)
     if len(files) > n_sample:
@@ -98,18 +107,28 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
         }
         yte, gte = y[te], groups[te]
         for name, (lo, hi) in methods.items():
-            ci = rollout_bootstrap_ci(yte, lo, hi, gte, seed=seed)
+            draws = rollout_bootstrap_draws(yte, lo, hi, gte, seed=seed)
             rows.append({
                 "method": name, "seed": seed,
-                "coverage": marginal_coverage(yte, lo, hi), "ci_lo": ci[0], "ci_hi": ci[1],
+                "coverage": marginal_coverage(yte, lo, hi),
+                "ci_lo": float(np.quantile(draws, 0.05)),
+                "ci_hi": float(np.quantile(draws, 0.95)),
                 "median_width": median_width(lo, hi),
                 "normalized_width": normalized_width(yte, lo, hi, agg="median"),
+                "_draws": draws,
             })
-    agg = (pd.DataFrame(rows).groupby("method", sort=False)
+    per_seed = pd.DataFrame(rows)
+    agg = (per_seed.groupby("method", sort=False)
            .agg(coverage=("coverage", "mean"), cov_std=("coverage", "std"),
-                ci_lo=("ci_lo", "mean"), ci_hi=("ci_hi", "mean"),
                 median_width=("median_width", "mean"),
                 normalized_width=("normalized_width", "mean")).reset_index())
+    # Pooled seed x rollout bootstrap band, not a mean of per-seed CI endpoints
+    # (which is not a CI at any level — 2026-08-01 audit).
+    pooled = per_seed.groupby("method", sort=False)["_draws"].apply(
+        lambda group: pooled_bootstrap_ci(list(group))
+    )
+    agg["ci_lo"] = [c[0] for c in pooled]
+    agg["ci_hi"] = [c[1] for c in pooled]
     os.makedirs(os.path.join(REPO, "tables"), exist_ok=True)
     agg.to_csv(os.path.join(REPO, "tables", "external_coverage.csv"), index=False)
     print(agg.to_string(index=False))

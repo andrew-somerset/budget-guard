@@ -45,8 +45,14 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA,
         te = masks["test"]
         # like-for-like agent baseline: the SAME feasible test rows the guard is scored on,
         # from the record's per-sample agent coverage flags (joint = all three contain).
-        acov = {res: float(df.loc[te, f"agent_cov_{res}"].mean()) for res in RESOURCES}
-        acov["joint"] = float(df.loc[te, [f"agent_cov_{r}" for r in RESOURCES]].all(axis=1).mean())
+        # None = the agent declared the run impossible and emitted no interval;
+        # BAGEN's convention excludes those rows from its coverage rates, so we do
+        # too (float-mean skips NaN per-resource; the joint masks to fully-defined
+        # rows — .all() would count NaN as covered).
+        sub = df.loc[te, [f"agent_cov_{r}" for r in RESOURCES]].astype("float")
+        acov = {res: float(sub[f"agent_cov_{res}"].mean()) for res in RESOURCES}
+        defined = sub.notna().all(axis=1)
+        acov["joint"] = float(sub[defined].astype(bool).all(axis=1).mean())
         rows.append({"scheme": "agent self-report", "seed": seed, **acov})
         for scheme in ("independent", "bonferroni", "copula"):
             result = joint_intervals(df, masks, alpha=alpha, scheme=scheme)

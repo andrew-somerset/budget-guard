@@ -19,7 +19,7 @@ import pandas as pd
 from .conformal import DEFAULT_ALPHA, cqr_split, mondrian_cqr
 from .data import ENVS, load_env
 from .features import build_xy
-from .metrics import marginal_coverage, rollout_bootstrap_ci
+from .metrics import marginal_coverage, pooled_bootstrap_ci, rollout_bootstrap_draws
 from .split import group_split
 
 BUCKET_EDGES = (2, 3)              # k=1 / k=2 / k>=3  (matches conformal.mondrian_cqr)
@@ -53,11 +53,15 @@ def run_env(env: str, seed: int, alpha: float = DEFAULT_ALPHA) -> list[dict]:
         for slice_name, sel in _slices(k_te):
             if sel.sum() < 5:
                 continue
-            ci = rollout_bootstrap_ci(yte[sel], lo[sel], hi[sel], gte[sel], seed=seed)
+            draws = rollout_bootstrap_draws(yte[sel], lo[sel], hi[sel], gte[sel], seed=seed)
             rows.append({
                 "env": env, "seed": seed, "method": name, "slice": slice_name,
                 "coverage": marginal_coverage(yte[sel], lo[sel], hi[sel]),
-                "ci_lo": ci[0], "ci_hi": ci[1], "n": int(sel.sum()),
+                # per-seed 90% cluster-bootstrap CI (quantiles of this seed's draws)
+                "ci_lo": float(np.quantile(draws, 0.05)),
+                "ci_hi": float(np.quantile(draws, 0.95)),
+                "n": int(sel.sum()),
+                "_draws": draws,
             })
     return rows
 
@@ -70,8 +74,15 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     per = pd.DataFrame(rows)
     agg = (per.groupby(["env", "method", "slice"], sort=False)
            .agg(coverage=("coverage", "mean"), cov_std=("coverage", "std"),
-                ci_lo=("ci_lo", "mean"), ci_hi=("ci_hi", "mean"),
                 n=("n", "mean")).reset_index())
+    # Aggregate band: pooled seed×rollout bootstrap quantiles, NOT a mean of
+    # per-seed CI endpoints (which is not a CI; see metrics.rollout_bootstrap_mean_draws).
+    pooled = per.groupby(["env", "method", "slice"], sort=False)["_draws"].apply(
+        lambda s: pooled_bootstrap_ci(list(s))
+    )
+    assert len(pooled) == len(agg)
+    agg["ci_lo"] = [c[0] for c in pooled]
+    agg["ci_hi"] = [c[1] for c in pooled]
 
     # worst-slice: min coverage over the k-buckets (not marginal), per env×method×seed,
     # then averaged over seeds — the number a reviewer worried about conditional coverage
@@ -110,7 +121,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
         ax.set_ylim(0.5, 1.05)
         ax.grid(alpha=0.25)
         ax.set_axisbelow(True)
-    axes[0].set_ylabel("coverage (mean over seeds, rollout-bootstrap CI)")
+    axes[0].set_ylabel("coverage (mean over seeds; band = pooled seed×rollout bootstrap)")
     axes[-1].legend(frameon=False, fontsize=9)
     fig.suptitle(f"Conditional coverage by turn depth — split-CQR vs Mondrian "
                  f"(nominal {1 - alpha:.2f})")

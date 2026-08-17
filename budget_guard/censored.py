@@ -28,8 +28,13 @@ Five calibrations of the one-sided upper bound, P(y <= hi) >= 1 − alpha:
                   Returns +inf when the upper tail is all censored — the rigorous
                   statement that no finite valid bound exists (see ``km_upper_qhat``).
 
-Warehouse validation: censored rows secretly retain their totals, so true y is
-recoverable — mask it, calibrate as if censored, then measure real coverage.
+Warehouse validation: censored rows secretly retain their totals, so a label is
+recoverable — mask it, calibrate as if censored, then measure coverage against
+the recovered label. Caveat (2026-08-02 audit): the recovery is EXACT only for
+time_weeks; for cost/warehouse it inherits load_warehouse's week-proportional
+interpolation (median 12-27% relative error on comparable uncensored rows), so
+censored-stratum coverage for those two resources is measured against an
+approximate label, not ground truth. Frame claims accordingly.
 """
 from __future__ import annotations
 

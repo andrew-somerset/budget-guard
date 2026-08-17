@@ -32,30 +32,39 @@ def _safe_int(value: Any) -> Optional[int]:
         return None
 
 
-def resolve_turn_total(turn: dict) -> Optional[int]:
-    """Total tokens for one turn. Mirrors env.py ``_resolve_turn_total_tokens`` order."""
-    for key in ("api_total_tokens", "total_tokens"):
+def _first_int(turn: dict, *keys: str) -> Optional[int]:
+    """First key whose value parses to an int — falling through ONLY on None.
+
+    An ``or``-chain here would treat a legitimate 0 token count as missing and
+    read the secondary key instead (e.g. api_input_tokens=0 for a fully-cached
+    request falling through to a nonzero input_tokens), diverging from the BAGEN
+    reference's explicit is-None checks and silently inflating turn totals.
+    """
+    for key in keys:
         value = _safe_int(turn.get(key))
         if value is not None:
             return value
-    inp = _safe_int(turn.get("api_input_tokens")) or _safe_int(turn.get("input_tokens"))
-    out = _safe_int(turn.get("api_output_tokens")) or _safe_int(turn.get("output_tokens"))
+    return None
+
+
+def resolve_turn_total(turn: dict) -> Optional[int]:
+    """Total tokens for one turn. Mirrors env.py ``_resolve_turn_total_tokens`` order."""
+    value = _first_int(turn, "api_total_tokens", "total_tokens")
+    if value is not None:
+        return value
+    inp = _first_int(turn, "api_input_tokens", "input_tokens")
+    out = _first_int(turn, "api_output_tokens", "output_tokens")
     if inp is not None or out is not None:
         return int(inp or 0) + int(out or 0)
     return _safe_int(turn.get("actual_token"))
 
 
 def _resolve_turn_input_tokens(turn: dict) -> Optional[int]:
-    return _safe_int(turn.get("api_input_tokens")) or _safe_int(turn.get("input_tokens"))
+    return _first_int(turn, "api_input_tokens", "input_tokens")
 
 
 def _resolve_turn_output_tokens(turn: dict) -> Optional[int]:
-    value = _safe_int(turn.get("api_output_tokens"))
-    if value is None:
-        value = _safe_int(turn.get("output_tokens"))
-    if value is None:
-        value = _safe_int(turn.get("actual_token"))
-    return value
+    return _first_int(turn, "api_output_tokens", "output_tokens", "actual_token")
 
 
 def _rough_text_token_count(text: str) -> int:
@@ -203,7 +212,17 @@ def _is_truncated(turn: dict, max_ctx: int) -> bool:
     if bool(turn.get("success")) or not _assistant_content(turn):
         return False
     actions = turn.get("actions")
-    return (len(actions) == 0) if isinstance(actions, list) else actions in (None, "")
+    if isinstance(actions, list):
+        return len(actions) == 0
+    if actions in (None, ""):
+        # Mirror the reference (env.py _turn_has_no_executed_actions): a missing
+        # actions field falls back to action_names; only an explicitly EMPTY list
+        # means "no executed actions". Returning True here unconditionally would
+        # declare implicit truncation and drop the rest of the rollout — silently
+        # rewriting y for every earlier prefix.
+        action_names = turn.get("action_names")
+        return len(action_names) == 0 if isinstance(action_names, list) else False
+    return False
 
 
 @dataclass
@@ -235,7 +254,13 @@ def flatten_to_samples(rollouts: list[dict], max_ctx: int = DEFAULT_MAX_CTX) -> 
         request_details = [_turn_usage_detail(turn) for turn in kept]
         visible_output = [_estimate_turn_visible_output_tokens(turn) for turn in kept]
         turn_details = convert_request_usage_to_turn_usage(request_details, visible_output)
-        totals = [int(detail["total_tokens"] or 0) for detail in turn_details]
+        if any(detail["total_tokens"] is None for detail in turn_details):
+            # Mirror the reference: a turn with no usable usage voids the whole
+            # rollout's labels (env.py propagates None into
+            # actual_remaining_total_tokens). Substituting 0 would fabricate
+            # understated tokens_so_far and y for every prefix of the rollout.
+            continue
+        totals = [int(detail["total_tokens"]) for detail in turn_details]
         cumulative, running = [], 0
         for value in totals:
             running += value
@@ -268,10 +293,32 @@ def samples_to_dataframe(samples: list[PrefixSample]):
 
 
 def _default_smoke_path() -> str:
-    bagen_dir = os.environ.get("BAGEN_DIR") or os.path.join(
-        os.path.dirname(__file__), "..", "..", "BAGEN"
+    """Locate the sokoban smoke sample.
+
+    A real BAGEN checkout always wins ($BAGEN_DIR, then a sibling ../BAGEN). The vendored
+    copy under tests/fixtures/ is the last resort, so that a fresh clone with no BAGEN
+    alongside it can still run the extractor invariant tests instead of skipping them.
+    """
+    candidates = []
+    if os.environ.get("BAGEN_DIR"):
+        candidates.append(
+            os.path.join(os.environ["BAGEN_DIR"], "_smoke", "sokoban_dialogues.json")
+        )
+    here = os.path.dirname(__file__)
+    candidates.append(
+        os.path.join(here, "..", "..", "BAGEN", "_smoke", "sokoban_dialogues.json")
     )
-    return os.path.join(bagen_dir, "_smoke", "sokoban_dialogues.json")
+    vendored = os.path.join(
+        here, "..", "tests", "fixtures", "bagen_smoke_sokoban_dialogues.json"
+    )
+    candidates.append(vendored)
+
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    # Nothing found: return the first candidate so the caller's error names the location
+    # the user most likely intended.
+    return candidates[0]
 
 
 def _self_check(df) -> None:

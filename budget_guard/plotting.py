@@ -28,7 +28,11 @@ MAGENTA = "#e87ba4"
 ORANGE = "#eb6834"
 
 UNBOUNDED_HATCH = "///"
-UNBOUNDED_MIN_FRAC = 0.02  # below this, treat as a rounding artefact and stay quiet
+# Mark ANY nonzero unbounded fraction. frac_unbounded is an exact measured share of
+# a multi-thousand-sample stream, never a rounding artefact — an earlier 0.02
+# threshold silently let up to 2% [0, inf) intervals inflate a coverage bar by up
+# to 0.02 absolute (a fifth of the whole miss budget at alpha=0.1) with no visual
+# disclosure, which is precisely what this module exists to prevent.
 
 
 def group_bar_width(n_series: int, group_span: float = 0.82) -> float:
@@ -49,13 +53,14 @@ def mark_unbounded(ax, bars, fracs, values, fontsize: float = 6.5) -> bool:
     """
     marked = False
     for bar, frac, value in zip(bars, fracs, values):
-        if not np.isfinite(frac) or frac < UNBOUNDED_MIN_FRAC or not np.isfinite(value):
+        if not np.isfinite(frac) or frac <= 0 or not np.isfinite(value):
             continue
         bar.set_hatch(UNBOUNDED_HATCH)
         bar.set_edgecolor("#1C2128")
         bar.set_linewidth(0.6)
+        tag = f"∞:{frac:.0%}" if frac >= 0.005 else "∞:<1%"
         ax.text(bar.get_x() + bar.get_width() / 2, value / 2,
-                f"∞:{frac:.0%}", ha="center", va="center",
+                tag, ha="center", va="center",
                 fontsize=fontsize, color="#FFFFFF", rotation=90)
         marked = True
     return marked

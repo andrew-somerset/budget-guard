@@ -36,7 +36,9 @@ _LGBM_PARAMS = dict(
 
 
 def _fit_point(X, y):
-    from lightgbm import LGBMRegressor
+    from ._deps import require_lightgbm
+
+    LGBMRegressor = require_lightgbm().LGBMRegressor
 
     model = LGBMRegressor(objective="regression", **_LGBM_PARAMS)
     model.fit(X, y)
@@ -44,7 +46,9 @@ def _fit_point(X, y):
 
 
 def _fit_quantile(X, y, q: float):
-    from lightgbm import LGBMRegressor
+    from ._deps import require_lightgbm
+
+    LGBMRegressor = require_lightgbm().LGBMRegressor
 
     model = LGBMRegressor(objective="quantile", alpha=q, **_LGBM_PARAMS)
     model.fit(X, y)
@@ -70,6 +74,33 @@ def _finite_sample_quantile(scores: np.ndarray, alpha: float) -> float:
 
 def _clip_nonneg(lo: np.ndarray) -> np.ndarray:
     return np.maximum(lo, 0.0)
+
+
+def _require_contiguous_groups(groups: np.ndarray) -> None:
+    """Reject test streams whose rollout ids are interleaved or reordered.
+
+    The rollout-safe buffering in aci_cqr / spci / dtaci absorbs a rollout's
+    buffered labels when the ADJACENT group id changes. That is only equivalent to
+    "absorb when the rollout finishes" if each rollout occupies one unbroken block.
+    If an id reappears later (e.g. someone sorts the test rows by turn depth before
+    calling), every id transition silently absorbs a still-running rollout's
+    labels — qhat/alpha_t then depend on remaining-to-completion labels that do
+    not exist yet, and coverage is inflated by temporal leakage with no visible
+    symptom. All streams built by extract.flatten_to_samples are contiguous, so
+    this check never fires on the shipped pipelines; it exists to make the failure
+    loud instead of silent for future callers.
+    """
+    boundaries = np.flatnonzero(groups[1:] != groups[:-1])
+    block_ids = groups[np.r_[0, boundaries + 1]]
+    if len(block_ids) != len(np.unique(block_ids)):
+        raise ValueError(
+            "groups must be contiguous per rollout (each rollout id in one "
+            "unbroken block): at least one id reappears after a boundary, which "
+            "would leak a still-running rollout's labels into predictions made "
+            "before that rollout finished. Sort/keep the test rows in original "
+            "rollout order, or pass groups=None only for genuinely per-step-"
+            "labeled streams."
+        )
 
 
 def split_conformal_absres(X_train, y_train, X_cal, y_cal, X_test, alpha=DEFAULT_ALPHA):
@@ -113,11 +144,19 @@ def aci_cqr(
     a rollout's errors are buffered and applied only at the next rollout boundary
     — the level is frozen within a rollout, because remaining-to-completion labels
     do not exist until the rollout ends. ``groups=None`` = per-step revelation.
+
+    Deviation from canonical ACI (decision 2026-08-02): when alpha_t >= 1 the
+    canonical algorithm emits an EMPTY interval; we clamp the quantile lookup at
+    0.999 and emit a finite interval instead. This is safe-side only (coverage
+    and the error feedback can only be more conservative); state it in the paper
+    rather than silently diverging.
     """
     mlo, mhi = _fit_cqr(X_train, y_train, alpha)
     cal_scores = np.sort(_cqr_scores(mlo.predict(X_cal), mhi.predict(X_cal), y_cal))
     qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
     groups = None if groups is None else np.asarray(groups)
+    if groups is not None:
+        _require_contiguous_groups(groups)
 
     alpha_t = alpha
     lo = np.empty(len(y_test))
@@ -145,12 +184,18 @@ def aci_cqr(
     return _clip_nonneg(lo), hi, {"gamma": gamma, "alpha_path": alphas, "frac_inf": frac_inf}
 
 
-def spci(
+def windowed_cqr(
     X_train, y_train, X_cal, y_cal, X_test, y_test,
     alpha=DEFAULT_ALPHA, window: int = 100,
     groups=None,
 ):
-    """Windowed sequential conformal (SPCI-style).
+    """Windowed online conformal on CQR scores.
+
+    Naming (decision 2026-08-02): earlier notes and tables called this "SPCI".
+    That overclaims — SPCI (Xu & Xie 2023) fits a quantile regression on the
+    residual series; this method keeps a rolling window of conformity scores and
+    reads the empirical quantile off it. Public label is now "windowed-CQR";
+    cite SPCI as inspiration, never as the implemented method.
 
     Keeps the most recent ``window`` conformity scores — warm-started from CAL —
     and reads the interval half-width off that window's empirical quantile, so the
@@ -158,8 +203,6 @@ def spci(
     CAL distribution). With ``groups`` (rollout ids aligned to the test rows), a
     rollout's scores enter the window atomically at its boundary — no prefix sees
     a same-rollout label, which is unobservable until the rollout ends.
-    Simplification vs. full SPCI: empirical window quantiles in place of a
-    quantile regression on the residual series.
     """
     mlo, mhi = _fit_cqr(X_train, y_train, alpha)
     recent = deque(
@@ -168,6 +211,8 @@ def spci(
     )
     qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
     groups = None if groups is None else np.asarray(groups)
+    if groups is not None:
+        _require_contiguous_groups(groups)
 
     lo = np.empty(len(y_test))
     hi = np.empty(len(y_test))
@@ -185,6 +230,9 @@ def spci(
         else:
             pending.append(score_t)
     return _clip_nonneg(lo), hi, {"window": window}
+
+
+spci = windowed_cqr  # backward-compatible alias (pre-2026-08-02 name)
 
 
 def mondrian_cqr(
@@ -256,6 +304,8 @@ def dtaci(
     qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
     n_cal = len(cal_scores)
     groups = None if groups is None else np.asarray(groups)
+    if groups is not None:
+        _require_contiguous_groups(groups)
 
     K = len(gammas)
     expert_alpha = np.full(K, alpha)

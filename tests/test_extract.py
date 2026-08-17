@@ -3,10 +3,18 @@ import os
 
 import pytest
 
-from budget_guard.extract import flatten_to_samples, load_rollouts, samples_to_dataframe
+from budget_guard.extract import (
+    _default_smoke_path,
+    flatten_to_samples,
+    load_rollouts,
+    samples_to_dataframe,
+)
 
 REPO = os.path.join(os.path.dirname(__file__), "..")
-SMOKE = os.path.join(REPO, "..", "BAGEN", "_smoke", "sokoban_dialogues.json")
+# Resolve the smoke fixture the same way extract.py's CLI does, so BAGEN_DIR works here
+# too. Previously this hardcoded <repo>/../BAGEN, so the test skipped whenever BAGEN sat
+# anywhere else — including inside the reproducibility container.
+SMOKE = _default_smoke_path()
 SOKOBAN_RAW = os.path.join(
     REPO, "data", "bagen_hf", "origin",
     "sokoban-origin-claude-opus-4.7-low-thinking-128-main",

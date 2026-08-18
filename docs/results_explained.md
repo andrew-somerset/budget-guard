@@ -64,8 +64,7 @@ C3 is the frontier; C4 prices the operating point.
 ## How the pieces fit
 
 Transfer (deployment shift) should lead the paper. Warehouse abort + cost-of-pass
-lead the economics. Honest limits: logged (counterfactual-free) evaluation;
-closed-loop selection bias; SWE-bench cap strength.
+lead the economics. Honest limits: logged (counterfactual-free) evaluation; SWE-bench cap strength.
 
 ## Reproduce
 

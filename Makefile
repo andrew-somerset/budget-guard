@@ -89,13 +89,12 @@ repro: build outdirs
 
 # Everything `repro` covers, plus every remaining reported table (external-budget
 # transfer, censored rungs, conditional coverage, per-env economics, diagnostics)
-# and all three script-drawn figures, then both checkers. The run-all button.
+# and the two script-drawn figures, then both checkers. The run-all button.
 repro-all: build outdirs
 	docker run --rm --platform=linux/amd64 $(MOUNTS) $(IMAGE) sh -c "\
 		python -m budget_guard.run_final --full && \
 		python scripts/make_pipeline_figure.py && \
-		python scripts/make_costofpass_figure.py && \
-		python scripts/run_closed_loop.py"
+		python scripts/make_costofpass_figure.py"
 	$(MAKE) check-numbers
 	$(PYTHON) scripts/check_paper_numbers.py
 

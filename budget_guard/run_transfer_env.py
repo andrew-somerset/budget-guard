@@ -27,7 +27,7 @@ from .metrics import (
     pooled_bootstrap_ci,
     rollout_bootstrap_draws,
 )
-from .plotting import UNBOUNDED_NOTE, group_bar_width, mark_unbounded, nominal_line
+from .plotting import UNBOUNDED_NOTE, figure_title, group_bar_width, mark_unbounded, nominal_line
 from .split import group_split
 
 AQUA, YELLOW, VIOLET, GREEN = "#1baf7a", "#eda100", "#4a3aa7", "#008300"
@@ -115,9 +115,11 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     ax.set_xticks(xs, [f"sokoban → {e}" for e in targets])
     ax.set_ylim(0, 1.16)
     ax.set_ylabel("marginal coverage on target stream")
-    title = ("Cross-env transfer (same model): frozen conformal collapses, online self-heals\n"
-             f"calibrated on sokoban, deployed on new task types ({len(seeds)} seeds; "
-             "band = 90% pooled seed×rollout cluster bootstrap)")
+    title = figure_title(
+        "Cross-environment transfer (same model): frozen conformal collapses, online self-heals",
+        f"Calibrated on Sokoban, deployed on new task types ({len(seeds)} seeds; "
+        "band = 90% pooled seed×rollout cluster bootstrap)",
+    )
     if any_unbounded:
         title += f"\n{UNBOUNDED_NOTE}"
     ax.set_title(title, fontsize=10.5)

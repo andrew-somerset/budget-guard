@@ -1,0 +1,82 @@
+% NeurIPS §4.3 figure captions for Budget Guard.
+%
+% - Paste each \caption{...} after \includegraphics{...} inside \begin{figure}...\end{figure}.
+% - Assign figure numbers and \label{fig:...} in the paper (consecutive order may differ).
+% - Sentence case: capitalize the first word and proper nouns only.
+% - On-figure PNG titles are for the internal results PDF; they are not the submission caption.
+
+% figures/coverage_main.png
+\caption{Remaining-budget interval coverage on BAGEN environments.
+Conformal guard vs.\ agent self-report ($\alpha=0.10$, claude-opus-4.7, mean$\pm$std over 5 split seeds).}
+
+% figures/gap_sokoban.png
+\caption{Gap vs.\ agent self-report on Sokoban.
+Marginal coverage (left) and coverage conditional on trajectory depth (right); test split by rollout, $\alpha=0.10$.}
+
+% figures/gap_searchr1.png
+\caption{Gap vs.\ agent self-report on SearchR1.
+Marginal coverage (left) and coverage conditional on trajectory depth (right); test split by rollout, $\alpha=0.10$.}
+
+% figures/gap_swebench.png
+\caption{Gap vs.\ agent self-report on SWE-bench.
+Marginal coverage (left) and coverage conditional on trajectory depth (right); test split by rollout, $\alpha=0.10$.}
+
+% figures/label_efficiency_sokoban.png
+\caption{Label efficiency on Sokoban.
+Split-CQR, $\alpha=0.10$, 5 seeds $\times$ 30 redraws.}
+
+% figures/transfer_env.png
+\caption{Cross-environment transfer (same model): frozen conformal collapses, online self-heals.
+Calibrated on Sokoban, deployed on new task types (5 seeds; band = 90\% pooled seed$\times$rollout cluster bootstrap).}
+
+% figures/transfer_swebench.png
+\caption{Model-swap transfer on SWE-bench: guard calibrated on claude-opus-4.7, deployed on other models.
+5 seeds; band = 90\% pooled seed$\times$rollout cluster bootstrap.}
+
+% figures/allruns.png
+\caption{Guard coverage across all runs vs.\ agent self-report.
+Single split seed (breadth table, not variance).}
+
+% figures/conditional_coverage.png
+\caption{Conditional coverage by turn depth.
+Split-CQR vs.\ Mondrian buckets (nominal 0.90).}
+
+% figures/final/joint_vs_marginal.png
+\caption{Per-resource and joint coverage on Warehouse (opus-4.7).
+Like-for-like comparison, mean over 5 split seeds.}
+
+% figures/transfer_warehouse.png
+\caption{Warehouse model-swap: rollout-safe joint adaptation.
+Calibrated on claude-opus-4.7 (5 seeds, rollout-cluster 90\% CI).}
+
+% figures/final/abort_frontier_warehouse.png
+\caption{Abort frontier on Warehouse.
+Native USD accounting, mean over 5 split seeds.}
+
+% figures/abort_frontier_sokoban.png
+\caption{Abort frontier on Sokoban.
+Mean over 5 split seeds.}
+
+% figures/abort_frontier_swebench.png
+\caption{Abort frontier on SWE-bench.
+Mean over 5 split seeds.}
+
+% figures/final/cost_of_pass_warehouse.png
+\caption{Warehouse cost-of-pass frontier.
+Guard halves \$/success at full pass retention; hard caps trade successes for savings.}
+
+% figures/cost_of_pass_sokoban.png
+\caption{Cost of pass on Sokoban.
+Mean over 5 seeds; \$15/Mtok assumed for the \$ column.}
+
+% figures/cost_of_pass_swebench.png
+\caption{Cost of pass on SWE-bench.
+Mean over 5 seeds; \$15/Mtok assumed for the \$ column.}
+
+% figures/final/selective_frontier.png
+\caption{Feasibility-gated selective frontier on Warehouse.
+5 seeds; keeping fewer runs (higher $\delta$) lifts coverage on the kept set.}
+
+% figures/final/pipeline.png
+\caption{Budget Guard pipeline.
+Calibration, deployment, and online adaptation stages for remaining-budget interval prediction.}

@@ -20,6 +20,7 @@ import pandas as pd
 from .censored import gated_upper_qhat
 from .economic import fit_feasibility, fit_remaining_regressor
 from .multiresource import RESOURCES, build_features, load_warehouse
+from .plotting import figure_title
 from .run_multiresource import PATH
 from .split import group_split
 
@@ -101,8 +102,10 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), outdir: str = "figures"):
     ax.text(0.02, 1 - ALPHA + 0.008, f"nominal {1 - ALPHA:.2f}", fontsize=9, color="#4A5361")
     ax.set_xlabel("fraction of runs kept (gate abstains on predicted doom)")
     ax.set_ylabel("coverage on kept feasible runs")
-    ax.set_title("Selective frontier — feasibility-gated intervals (Warehouse, "
-                 f"{len(seeds)} seeds)\nkeeping fewer (higher δ) lifts coverage on the kept runs")
+    ax.set_title(figure_title(
+        "Feasibility-gated selective frontier",
+        f"Warehouse, {len(seeds)} seeds; keeping fewer runs (higher δ) lifts coverage on the kept set",
+    ))
     ax.grid(alpha=0.25)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=9, title="resource")

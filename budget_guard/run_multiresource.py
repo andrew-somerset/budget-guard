@@ -22,7 +22,7 @@ from .multiresource import (
     joint_intervals,
     load_warehouse,
 )
-from .plotting import bar_value_labels, nominal_line
+from .plotting import bar_value_labels, figure_title, nominal_line
 from .split import group_split
 
 PATH = os.path.join(
@@ -95,8 +95,10 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA,
     ax.set_xticks(xs, ["time", "warehouse", "cost", "JOINT (all 3)"])
     ax.set_ylim(0, 1.15)
     ax.set_ylabel("coverage")
-    ax.set_title(f"C2 multi-resource (Warehouse, opus-4.7): per-resource and joint coverage, "
-                 f"like-for-like, mean over {len(seeds)} seeds")
+    ax.set_title(figure_title(
+        "Per-resource and joint coverage on Warehouse (opus-4.7)",
+        f"Like-for-like comparison, mean over {len(seeds)} split seeds",
+    ))
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
     nominal_line(ax, alpha, zorder=4)

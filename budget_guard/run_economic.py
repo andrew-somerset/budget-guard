@@ -26,7 +26,7 @@ from .economic import (
     hard_cap_baseline,
 )
 from .features import build_xy
-from .plotting import annotate_param_clusters
+from .plotting import annotate_param_clusters, figure_title
 from .split import group_split
 
 BLUE, YELLOW, GRAY, GREEN = "#2a78d6", "#eda100", "#8B93A1", "#008300"
@@ -117,7 +117,7 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
     ax.plot(guard["false_abort_rate"], guard["doomed_savings_frac"], marker="o", ms=5,
             lw=2, color=BLUE, label="guard: feasibility only")
     ax.plot(combined["false_abort_rate"], combined["doomed_savings_frac"], marker="D",
-            ms=5, lw=2, color=GREEN, label="guard: feasibility + interval (C1→C3)")
+            ms=5, lw=2, color=GREEN, label="guard: feasibility + interval")
     if env == "swebench":
         _annotate_swebench_combined(ax, combined)
     else:
@@ -132,7 +132,10 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
     ax.set_ylabel("fraction of doomed-run spend saved")
     ax.set_xlim(-0.01, max(0.5, guard["false_abort_rate"].max() + 0.05))
     ax.set_ylim(0, 1.0)
-    ax.set_title(f"C3 abort frontier — {env} (mean over {len(seeds)} seeds)")
+    ax.set_title(figure_title(
+        f"Abort frontier — {env}",
+        f"Mean over {len(seeds)} split seeds",
+    ))
     ax.grid(alpha=0.25)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=9, loc="lower right")

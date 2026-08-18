@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from .conformal import DEFAULT_ALPHA, cqr_split, mondrian_cqr
+from .plotting import figure_title
 from .data import ENVS, load_env
 from .features import build_xy
 from .metrics import marginal_coverage, pooled_bootstrap_ci, rollout_bootstrap_draws
@@ -123,8 +124,10 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
         ax.set_axisbelow(True)
     axes[0].set_ylabel("coverage (mean over seeds; band = pooled seed×rollout bootstrap)")
     axes[-1].legend(frameon=False, fontsize=9)
-    fig.suptitle(f"Conditional coverage by turn depth — split-CQR vs Mondrian "
-                 f"(nominal {1 - alpha:.2f})")
+    fig.suptitle(figure_title(
+        "Conditional coverage by turn depth",
+        f"Split-CQR vs Mondrian buckets (nominal {1 - alpha:.2f})",
+    ))
     fig.savefig("figures/conditional_coverage.png", dpi=200)
 
     print(agg.to_string(index=False))

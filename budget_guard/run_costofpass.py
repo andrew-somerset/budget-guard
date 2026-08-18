@@ -23,6 +23,7 @@ import pandas as pd
 from .data import load_env
 from .economic import calibrate_threshold, fit_feasibility
 from .features import build_xy
+from .plotting import figure_title
 from .split import group_split
 
 USD_PER_MTOK = 15.0  # blended $/1M tokens assumption; change freely, rankings unaffected
@@ -151,8 +152,10 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
             lw=1.6, ls=":", color=YELLOW, label="hard cap (sweep cap)")
     ax.set_xlabel("fraction of passes retained (vs agent alone)")
     ax.set_ylabel("cost of pass (tokens per correct answer)")
-    ax.set_title(f"C4 cost-of-pass — {env} (mean over {len(seeds)} seeds; "
-                 f"${USD_PER_MTOK}/Mtok assumed for $ column)")
+    ax.set_title(figure_title(
+        f"Cost of pass — {env}",
+        f"Mean over {len(seeds)} seeds; ${USD_PER_MTOK}/Mtok assumed for $ column",
+    ))
     ax.grid(alpha=0.25)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=9)

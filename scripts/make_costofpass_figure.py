@@ -19,6 +19,8 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(HERE, "tables", "cost_of_pass_warehouse.csv")
 OUT = os.path.join(HERE, "figures", "final", "cost_of_pass_warehouse")
 
+from budget_guard.plotting import figure_title  # noqa: E402
+
 # Validated categorical palette (scripts/validate_palette.js, light surface: all checks pass).
 BLUE, ORANGE, GREEN = "#2E6FD0", "#C1741A", "#00916E"
 INK, MUTED, GRID = "#1a1a1a", "#5c5c5c", "#d8d8d8"
@@ -76,9 +78,13 @@ def main():
 
     ax.set_xlabel("fraction of successful runs retained (vs agent alone)", fontsize=10, color=INK)
     ax.set_ylabel("cost of pass ($M per success)", fontsize=10, color=INK)
-    ax.set_title("C4: Warehouse cost-of-pass frontier\n"
-                 "Guard halves $/success at full pass retention; hard caps trade successes for savings",
-                 fontsize=11, color=INK, pad=10)
+    ax.set_title(
+        figure_title(
+            "Warehouse cost-of-pass frontier",
+            "Guard halves $/success at full pass retention; hard caps trade successes for savings",
+        ),
+        fontsize=11, color=INK, pad=10,
+    )
 
     ax.set_xticks([0.4,0.5,0.6,0.7,0.8,0.9,1.0])
     ax.grid(True, color=GRID, lw=0.7, zorder=0)

@@ -39,6 +39,7 @@ from .metrics import (
 )
 from .plotting import (
     UNBOUNDED_NOTE,
+    figure_title,
     group_bar_width,
     mark_unbounded,
     nominal_line,
@@ -194,8 +195,10 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     ax.set_xticks(xs, envs)
     ax.set_ylim(0, 1.20)
     ax.set_ylabel("marginal coverage")
-    title = ("Remaining-budget interval coverage: BAGEN agent vs conformal guard\n"
-             f"alpha={alpha}, claude-opus-4.7, mean±std over {len(seeds)} split seeds")
+    title = figure_title(
+        "Remaining-budget interval coverage: BAGEN agent vs conformal guard",
+        f"α={alpha}, claude-opus-4.7, mean±std over {len(seeds)} split seeds",
+    )
     if any_unbounded:
         title += f"\n{UNBOUNDED_NOTE}"
     ax.set_title(title, fontsize=11)

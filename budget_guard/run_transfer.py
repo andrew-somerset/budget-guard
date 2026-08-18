@@ -36,7 +36,7 @@ from .metrics import (
     pooled_bootstrap_ci,
     rollout_bootstrap_draws,
 )
-from .plotting import UNBOUNDED_NOTE, group_bar_width, mark_unbounded, nominal_line
+from .plotting import UNBOUNDED_NOTE, figure_title, group_bar_width, mark_unbounded, nominal_line
 from .split import group_split
 
 _DATA = os.path.join(os.path.dirname(__file__), "..", "data", "bagen_hf", "estimation")
@@ -189,9 +189,10 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     ax.set_xticks(xs, models)
     ax.set_ylim(0, 1.16)
     ax.set_ylabel("marginal coverage on target stream")
-    title = ("Model-swap transfer (SWE-bench): guard calibrated on claude-opus-4.7, "
-             f"deployed on other models\n({len(seeds)} seeds; band = 90% pooled "
-             "seed×rollout cluster bootstrap)")
+    title = figure_title(
+        "Model-swap transfer (SWE-bench): guard calibrated on claude-opus-4.7, deployed on other models",
+        f"{len(seeds)} seeds; band = 90% pooled seed×rollout cluster bootstrap",
+    )
     if any_unbounded:
         title += f"\n{UNBOUNDED_NOTE}"
     ax.set_title(title, fontsize=10.5)

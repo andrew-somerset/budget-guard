@@ -377,7 +377,7 @@ def main(
                loc="upper center", bbox_to_anchor=(0.5, -0.02))
     fig.suptitle(
         "Warehouse model-swap: rollout-safe joint adaptation\n"
-        f"calibrated on claude-opus-4.7 ({len(seeds)} seeds, rollout-cluster 90% CI; window={window})"
+        f"Calibrated on claude-opus-4.7 ({len(seeds)} seeds, rollout-cluster 90% CI; window={window})"
     )
     fig.savefig("figures/transfer_warehouse.png", dpi=200, bbox_inches="tight")
 

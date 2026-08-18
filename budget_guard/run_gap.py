@@ -20,7 +20,7 @@ from .conformal import DEFAULT_ALPHA, cqr_split, mondrian_cqr, split_conformal_a
 from .data import load_env
 from .features import build_xy
 from .metrics import marginal_coverage, mean_width, normalized_width
-from .plotting import bar_value_labels, nominal_line
+from .plotting import bar_value_labels, figure_title, nominal_line
 from .split import group_split
 
 # dataviz-validated categorical palette (light surface)
@@ -88,7 +88,7 @@ def run(env: str = "sokoban", seed: int = 0, alpha: float = DEFAULT_ALPHA):
         patch.set_zorder(1)
     ax.set_ylim(0, 1.12)
     ax.set_ylabel("marginal coverage")
-    ax.set_title(f"{env}: marginal coverage (test, split by rollout)")
+    ax.set_title(f"{env}: Marginal coverage (test, split by rollout)")
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
     nominal_line(ax, alpha, color=GRAY, zorder=4)
@@ -103,11 +103,15 @@ def run(env: str = "sokoban", seed: int = 0, alpha: float = DEFAULT_ALPHA):
     ax.set_ylim(0, 1.05)
     ax.set_xlabel("turn index k")
     ax.set_ylabel("coverage at depth k")
-    ax.set_title("coverage conditional on trajectory depth")
+    ax.set_title("Coverage conditional on trajectory depth")
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=9, loc="lower right")
 
+    fig.suptitle(figure_title(
+        f"Gap vs agent self-report — {env}",
+        f"Test coverage split by rollout; α={alpha}",
+    ))
     fig.savefig(f"figures/gap_{env}.png", dpi=200)
     print(table.to_string(index=False))
     print(f"\nwrote figures/gap_{env}.png, tables/gap_{env}.csv")

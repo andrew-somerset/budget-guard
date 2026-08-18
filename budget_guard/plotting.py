@@ -48,6 +48,17 @@ def nominal_line(ax, alpha: float, color: str = "#4A5361", zorder: float = 4.0):
             solid_capstyle="butt", label=f"nominal {level:.2f}")
 
 
+def figure_title(main: str, subtitle: str = "") -> str:
+    """Two-line on-figure title for standalone PNGs (internal PDF / review).
+
+    NeurIPS §4.3: the numbered ``\\caption{}`` lives *after* ``\\includegraphics`` in
+    LaTeX (sentence case; first word and proper nouns capitalized). Do not burn figure
+    numbers or section codes (C1/C2/…) into PNGs. Copy-paste caption text from
+    ``scripts/figure_captions.tex``.
+    """
+    return main if not subtitle else f"{main}\n{subtitle}"
+
+
 def mark_unbounded(ax, bars, fracs, values, fontsize: float = 6.5) -> bool:
     """Hatch bars that achieved their coverage partly with unbounded intervals.
 

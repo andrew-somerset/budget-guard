@@ -4,7 +4,7 @@ Two jobs, both about not letting a figure overstate a result:
 
 * ``mark_unbounded`` — an online method can hit nominal coverage by emitting
   ``[0, inf)`` intervals. A coverage-only bar chart then ranks that method FIRST,
-  which is the opposite of the truth (ACI "recovers by surrender"; SPCI recovers by
+  which is the opposite of the truth (ACI "recovers by surrender"; windowed-CQR recovers by
   adaptation). Bars whose intervals were unbounded on part of the stream get a hatch
   plus an ``inf:NN%`` tag so the figure cannot be read as a clean win.
 * ``group_bar_width`` / ``nominal_line`` — layout guards. Bar width must shrink as

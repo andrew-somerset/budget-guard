@@ -45,7 +45,7 @@ MOUNTS_FETCH := -v "$(CURDIR)/data:/app/data"
 outdirs:
 	@mkdir -p "$(CURDIR)/figures" "$(CURDIR)/tables"
 
-.PHONY: help lock build test fetch repro repro-all repro-paper doctor shell digest check-numbers outdirs
+.PHONY: help lock build test fetch repro repro-all repro-paper results-pdf doctor shell digest check-numbers outdirs
 
 help:
 	@echo "make lock    regenerate requirements.lock.txt (needs uv, runs on host)"
@@ -55,6 +55,7 @@ help:
 	@echo "make repro   regenerate the headline figures/ and tables/ inside the container"
 	@echo "make repro-paper  regenerate + verify EVERYTHING the paper uses (tables, figures, both checkers)"
 	@echo "make repro-all  THE RUN-ALL BUTTON: every figure and table in the repo, then both checkers (slow)"
+	@echo "make results-pdf  assemble review PDF from regenerated PNGs (host; optional)"
 	@echo "make check-numbers  verify the paper's headline numbers against tables/"
 	@echo "make doctor  diagnose why a reproduction run differs (git/data/env/tables)"
 	@echo "make shell   interactive shell inside the container"
@@ -113,6 +114,11 @@ repro-paper: build outdirs
 		python scripts/make_costofpass_figure.py"
 	$(MAKE) check-numbers
 	$(PYTHON) scripts/check_paper_numbers.py
+
+# Optional: stitch regenerated PNGs into a review PDF (output defaults to a sibling folder).
+results-pdf: outdirs
+	@test -n "$(PYTHON)" || { echo "No python found on PATH. Activate your env, or: make results-pdf PYTHON=/path/to/python"; exit 1; }
+	$(PYTHON) scripts/make_results_pdf.py
 
 # Verifies headline numbers against the generated tables. Runs on the
 # host (it only reads CSVs) so it works without Docker.

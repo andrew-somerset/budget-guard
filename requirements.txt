@@ -1,6 +1,6 @@
 # CPU-only stack for the offline conformal infrastructure (no verl / vllm / GPU).
 # Pinned 2026-07-20 (Python 3.12, Windows .venv) for NeurIPS/ICML reproducibility —
-# these are the exact versions every reported number in notes/week*.md was
+# these are the exact versions every reported number in docs/results_explained.md was
 # re-derived against during the robustness pass. To upgrade deliberately: bump
 # versions in a dedicated commit, re-run the full test suite + headline tables,
 # and note any numeric drift.

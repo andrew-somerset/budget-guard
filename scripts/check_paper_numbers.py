@@ -6,7 +6,7 @@ claims; this one covers all 35 quantitative statements in the submission, sectio
 by section. Each check names the paper location, so a failure points straight at
 the sentence to fix. Rounding convention: the paper quotes 2dp unless noted.
 
-Usage: python scripts/check_paper_numbers.py   (regenerate tables/ first: make repro)
+Usage: python scripts/check_paper_numbers.py   (regenerate tables/ first: make repro-paper)
 """
 import sys
 from pathlib import Path

@@ -1,7 +1,7 @@
-"""budget_guard/run_coverage.py — Week 3 headline: all methods, all envs (C1).
+"""budget_guard/run_coverage.py — Week 3 headline: within-run coverage, all methods, all envs.
 
 Within-run evaluation (split by rollout, same model claude-opus-4.7 everywhere):
-split-absres, split-CQR, ACI-CQR (gamma tuned on CAL only), SPCI, plus the BAGEN
+split-absres, split-CQR, ACI-CQR (gamma tuned on CAL only), windowed-CQR, plus the BAGEN
 agent-self-report baseline from the official records. Online methods stream over
 the test rows in trajectory order with rollout-safe label revelation (a prefix's
 remaining-to-completion label enters the update state only after its rollout ends).

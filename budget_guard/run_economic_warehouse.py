@@ -1,4 +1,4 @@
-"""budget_guard/run_economic_warehouse.py — C3+C4 on the env they were designed for.
+"""budget_guard/run_economic_warehouse.py — Warehouse abort frontier and cost-of-pass.
 
 Warehouse: long runs, failure-driven doom (target cash unreachable in budget), and
 native DOLLARS — no per-token price assumption. Guard = feasibility rule with

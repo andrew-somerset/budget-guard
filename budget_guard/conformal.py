@@ -3,8 +3,8 @@
 Offline (Week 2): ``split_conformal_absres`` and ``cqr_split`` — valid when
 calibration and test scores are exchangeable.
 
-Online (Week 3, C1): ``aci_cqr`` (Gibbs & Candès 2021) and ``spci`` (windowed
-variant of Xu & Xie 2023) — track drift along the test stream by adapting the
+Online (Week 3): ``aci_cqr`` (Gibbs & Candès 2021) and ``windowed_cqr`` (windowed
+variant inspired by Xu & Xie 2023 SPCI) — track drift along the test stream by adapting the
 miscoverage level / score window as true labels arrive. The stream order is the
 natural trajectory order (rollout by rollout, turn by turn), which mimics
 deployment. Label availability: a prefix's label y (remaining-to-completion) is

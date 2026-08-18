@@ -22,7 +22,7 @@ import shutil
 from huggingface_hub import hf_hub_download
 
 REPO_ID = "MLL-Lab/BAGEN"
-# Pinned to the exact commit every number in notes/week*.md was derived from. The
+# Pinned to the exact commit every reported table was derived from. The
 # upstream dataset is a live HF repo and can change; without pinning, re-running
 # this script later could silently fetch different bytes than the paper used.
 # Re-verified reachable 2026-07-20 (last_modified 2026-05-28).
@@ -83,7 +83,7 @@ FILES = [
     "estimation/swebench-origin-gpt5.2instant_gpt5.2instant-512-main/swebench-origin-gpt5.2instant_gpt5.2instant-512-main.json",
     "estimation/swebench-origin-qwen3-235b_qwen3-235b-512-main/swebench-origin-qwen3-235b_eval_estimation_dialogues.json",
     "estimation/swebench-origin-qwen3-235b_qwen3-235b-512-main/swebench-origin-qwen3-235b_qwen3-235b-512-main.json",
-    # warehouse — C2 joint / C3 economics / censored conformal
+    # warehouse — joint coverage, economics, censored conformal
     "estimation/newwarehouse-opus4.7-low-thinking-main/newwarehouse-opus4.7-low-thinking-main.json",
     # warehouse — other 4 models, for run_transfer_warehouse.py's model-swap transfer
     # (closes the internal-vs-external transfer gap: run_transfer/run_transfer_env only

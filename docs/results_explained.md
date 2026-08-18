@@ -153,7 +153,7 @@ python scripts/check_headline_numbers.py   # 11 headline claims
 python scripts/check_paper_numbers.py      # 35 paper claims (after repro-paper tables exist)
 ```
 
-Optional: `python scripts/make_results_pdf.py` assembles a 19-page review PDF.
+Optional: `make results-pdf` or `python scripts/make_results_pdf.py` assembles a 19-page review PDF.
 `python scripts/repro_doctor.py` diagnoses environment / data / table mismatches.
 
 See the [README](../README.md) for setup, Docker details, and the `BudgetGuard` API.

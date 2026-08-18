@@ -34,6 +34,10 @@ context-truncated turn onward is dropped; only turns with assistant content are 
 `y` uses the *logged* full rollout, so the "future" is fixed → this offline replay is what makes
 the target tractable (the closed-loop / performative version is future work).
 
+## Evaluation
+Rollout-level splits and rollout-safe online label revelation are required for valid coverage
+under transfer; see [`docs/results_explained.md`](../docs/results_explained.md).
+
 ## Fidelity
 Validate `y` against the official harness once on Colab (walkthrough §6): target 0 mismatches.
 If real rollouts log input tokens that include replayed history, port

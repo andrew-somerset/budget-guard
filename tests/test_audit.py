@@ -4,7 +4,7 @@ Synthetic only (no BAGEN data). Two guarantees the whole project rests on:
 (1) the conformal machinery hits nominal on exchangeable data, with nominal inside a
     rollout cluster-bootstrap CI (not a per-sample binomial one);
 (2) under an injected distribution shift, FROZEN split conformal degrades while ONLINE
-    (SPCI) recovers — the direction the theory predicts. If this direction ever flips,
+    windowed-CQR recovers — the direction the theory predicts. If this direction ever flips,
     the transfer story (the paper's lead) is wrong.
 """
 import numpy as np
@@ -46,7 +46,7 @@ def test_clean_data_absres_hits_nominal():
 
 def test_injected_drift_frozen_degrades_online_recovers():
     """Calibrate on clean data, deploy on a shifted stream: frozen split-CQR must
-    under-cover; SPCI must recover meaningfully toward nominal."""
+    under-cover; windowed-CQR must recover meaningfully toward nominal."""
     Xc, yc, gc = _grouped(n_rollouts=300, seed=1)
     m = group_split(pd.DataFrame({"rollout_index": gc}), fracs=(0.6, 0.4, 0.0), seed=1)
     tr, ca = m["train"], m["cal"]

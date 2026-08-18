@@ -14,6 +14,8 @@
 # Build:  make build
 # Test:   make test
 # Repro:  make repro          (regenerates figures/ and tables/ from mounted data/)
+#        make repro-paper     (submission set + both number checkers)
+#        make results-pdf     (optional review PDF; host only, needs regenerated PNGs)
 #
 # ---------------------------------------------------------------------------------
 # Base image is pinned BY DIGEST, not by tag. The tag `python:3.12-slim-bookworm`

@@ -3,11 +3,11 @@
 Fixed seeds (0–4) for the reproducible final-figure set the write-up references.
 
 Always regenerated (needs only the minimal `scripts/fetch_bagen.py` subset):
-- joint_vs_marginal.png        (C2 multi-resource, like-for-like agent baseline)
-- abort_frontier_warehouse.png (C3 economic stopping, native USD)
-- selective_frontier.png       (feasibility-gated intervals — the methods result)
-- coverage_main.png            (C1 within-run coverage, all methods)
-- transfer_env.png             (cross-env transfer — the transfer-led headline)
+- joint_vs_marginal.png        (Warehouse per-resource and joint coverage)
+- abort_frontier_warehouse.png (Warehouse abort frontier, native USD)
+- selective_frontier.png       (feasibility-gated selective intervals)
+- coverage_main.png            (within-run coverage, all methods)
+- transfer_env.png             (cross-environment transfer)
 
 Regenerated only where the FULL multi-model BAGEN set is present (other models'
 swebench origin trajectories); skipped with a printed notice otherwise:
@@ -20,6 +20,8 @@ gap / label-efficiency. The default set is what the write-up's headline figures
 come from; --full is everything the paper reports.
 
 Usage: python -m budget_guard.run_final [--full]
+See also: scripts/make_pipeline_figure.py, scripts/make_costofpass_figure.py,
+scripts/figure_captions.tex (LaTeX captions), scripts/make_results_pdf.py (review PDF).
 """
 from __future__ import annotations
 
@@ -112,11 +114,11 @@ def _remaining_tables() -> None:
 
 def main(full: bool = False) -> None:
     _require_data()
-    run_multiresource.main(seeds=SEEDS, outdir=OUTDIR)       # C2 joint (like-for-like)
-    run_economic_warehouse.main(seeds=SEEDS, outdir=OUTDIR)  # C3 abort frontier
-    run_gated.main(seeds=SEEDS, outdir=OUTDIR)               # selective frontier (methods)
+    run_multiresource.main(seeds=SEEDS, outdir=OUTDIR)       # joint vs marginal
+    run_economic_warehouse.main(seeds=SEEDS, outdir=OUTDIR)  # Warehouse abort frontier
+    run_gated.main(seeds=SEEDS, outdir=OUTDIR)               # selective frontier
 
-    run_coverage.main(seeds=SEEDS)                           # C1 coverage
+    run_coverage.main(seeds=SEEDS)                           # within-run coverage
     run_transfer_env.main(seeds=SEEDS)                       # cross-env transfer
     _collect("coverage_main.png", "transfer_env.png")
 

@@ -1,4 +1,4 @@
-"""budget_guard/economic.py — C3: calibrated feasibility + economic stopping rule.
+"""budget_guard/economic.py — calibrated feasibility + economic stopping rule.
 
 The guard watches a run and may abort it. Two error costs: aborting a run that
 would have finished (lose its value) vs. riding a doomed run to the end (burn its

@@ -21,7 +21,7 @@ finished runs.
     if not step.abort:
         guard.observe()                                  # feed the finished run back (online)
 
-Coverage semantics (online mode = windowed SPCI, the transfer-robust default): the
+Coverage semantics (online mode = windowed-CQR, the transfer-robust default): the
 conformity-score window is warm-started from CAL and updated once per FINISHED run
 (a turn's true remaining-to-completion is only known when its run ends), so ``qhat``
 is fixed within a run and tracks drift across runs — exactly the deployment setting.

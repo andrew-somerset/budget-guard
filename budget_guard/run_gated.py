@@ -2,10 +2,10 @@
 
 ``run_censored`` showed the operative resource can't be tightly bounded from censored
 data (a doomed run's lower bound budget−spent is too loose). The fix is selective: gate
-on the feasibility classifier (C3) and emit a calibrated interval ONLY for runs
-predicted feasible-on-r; runs flagged doomed-on-r are aborted, not bounded. This unifies
-C1 (interval) and C3 (gate); the interval covers y_r CONDITIONAL on passing the gate,
-where censoring is filtered out so exchangeability is ~restored.
+on the feasibility classifier and emit a calibrated interval ONLY for runs predicted
+feasible-on-r; runs flagged doomed-on-r are aborted, not bounded. The interval covers
+y_r conditional on passing the gate, where censoring is filtered out so exchangeability
+is ~restored.
 
 Usage: python -m budget_guard.run_gated
 Writes tables/gated_intervals.csv.

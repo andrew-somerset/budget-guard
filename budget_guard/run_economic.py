@@ -1,4 +1,4 @@
-"""budget_guard/run_economic.py — C3 headline: the abort frontier.
+"""budget_guard/run_economic.py — headline: the abort frontier.
 
 Sweeps the false-abort tolerance delta and plots, on held-out test rollouts,
 (realized false-abort rate) vs (fraction of doomed-run spend saved), against the

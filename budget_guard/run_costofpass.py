@@ -1,4 +1,4 @@
-"""budget_guard/run_costofpass.py — C4: dollars per correct answer, whole trajectories.
+"""budget_guard/run_costofpass.py — cost of pass: dollars per correct answer, whole trajectories.
 
 Cost-of-pass = total spend / number of passing runs, over test rollouts, for three
 policies: the agent alone (rides every run to the end), the guard (feasibility

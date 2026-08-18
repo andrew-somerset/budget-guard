@@ -1,4 +1,4 @@
-"""budget_guard/run_multiresource.py — C2 headline: joint multi-resource coverage.
+"""budget_guard/run_multiresource.py — headline: joint multi-resource coverage.
 
 Warehouse env, claude-opus-4.7 run. Compares the BAGEN agent's own joint coverage
 against the guard with independent margins (each at alpha) and with the Bonferroni

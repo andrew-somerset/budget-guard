@@ -27,9 +27,8 @@ pip install -r requirements.txt
 
 ## Reproducible environment (optional, for bit-identical numbers)
 
-The conda setup above is enough to regenerate figures on your machine. For numbers that
-match the pinned linux/amd64 runs in the paper, use the Docker workflow on `main` — it
-fixes the OS, architecture, hash-verified dependency tree, and thread count that
+The conda setup above is enough to regenerate figures on your machine. For numbers that match the pinned linux/amd64 runs in the paper, use the Docker workflow
+in this repo — it fixes the OS, architecture, hash-verified dependency tree, and thread count that
 floating-point summation order depends on:
 
 ```bash
@@ -99,7 +98,8 @@ python scripts/make_pipeline_figure.py
 python scripts/make_costofpass_figure.py
 
 # optional: assemble a review PDF (sibling folder, not in git)
-python scripts/make_results_pdf.py
+make results-pdf
+# or: python scripts/make_results_pdf.py
 ```
 
 `make_results_pdf.py` writes `../budget-guard-supporting-documents/budget-guard-results.pdf`
@@ -154,7 +154,7 @@ budget_guard/   # the offline conformal infrastructure (the critical path)
   plotting.py   # shared figure helpers (nominal line, bar labels, figure_title)
   data_dictionary.md
 scripts/        # fetch, paper figure scripts, caption stubs, number checkers
-docs/           # results write-up
+docs/           # results write-up (start at results_explained.md)
 paper/          # related-work note
 ```
 

@@ -1,4 +1,4 @@
-"""budget_guard/multiresource.py — C2: joint intervals over {time, warehouse, cost}.
+"""budget_guard/multiresource.py — joint intervals over {time, warehouse, cost}.
 
 Data comes straight from the official Warehouse estimation records: each per-prefix
 ``ground_truth`` carries the true remaining amount of all three resources, so no
@@ -144,8 +144,8 @@ def _joint_rank_qhats(score_mat: np.ndarray, alpha: float) -> tuple[np.ndarray, 
     Known finite-sample optimism (decision 2026-08-02): the shared rank is
     SELECTED on the same calibration scores it then thresholds, so the copula
     scheme's joint coverage carries selection bias and is reported as an
-    empirical result, not a guarantee. The guarantee-carrying headline (C2's
-    0.95) is Bonferroni, which involves no data-driven selection. A split-
+    empirical result, not a guarantee. The guarantee-carrying headline (Bonferroni
+    ~0.95 joint coverage) involves no data-driven selection. A split-
     selection variant is future work.
 
     Each row is one observation and each column is one resource's CQR conformity
@@ -251,10 +251,10 @@ def adaptive_joint_intervals(
     Models are fit only on the source TRAIN split. The online window is warm-started
     from source CAL score vectors. Target labels are used strictly *after* each target
     rollout's predictions, via :func:`adaptive_joint_qhats`; they are never used to
-    refit the models. This is the multi-resource counterpart of the project's windowed
-    SPCI idea, with the empirical-copula combination recalibrated at every rollout.
+    refit the models. This is the multi-resource counterpart of windowed-CQR,
+    with the empirical-copula combination recalibrated at every rollout.
 
-    As with the existing C2 comparison, ``stream_df`` must contain feasible rows with
+    As with the joint coverage comparison, ``stream_df`` must contain feasible rows with
     observed remaining-resource labels. Censored/doomed rollouts need the separate gate
     in ``censored.py`` and are not silently treated as fully observed here.
     """

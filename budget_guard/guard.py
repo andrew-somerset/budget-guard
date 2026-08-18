@@ -1,10 +1,10 @@
 """budget_guard/guard.py — ``BudgetGuard``: the drop-in wrapper API.
 
-The paper's artifact: wrap any agent loop with a training-free monitor that, each
+The paper's artifact: wrap any agent with a training-free monitor that, each
 turn, emits a **calibrated interval on remaining budget** and an **abort
 recommendation** — no LLM fine-tuning. It is calibrated purely from completed runs
 (CAL logs) and, in online mode, self-recalibrates from the deployment stream's own
-finished runs (the transfer-robust story from ``notes/positioning.md``).
+finished runs (the transfer result summarized in ``docs/results_explained.md``).
 
     from budget_guard.extract import samples_to_dataframe, flatten_to_samples, load_rollouts
     from budget_guard.guard import BudgetGuard
@@ -13,7 +13,7 @@ finished runs (the transfer-robust story from ``notes/positioning.md``).
     guard = BudgetGuard.from_logs(cal_df, budget=7060)   # completed rollouts
 
     guard.reset()                                        # a new live run begins
-    for turn in agent_loop():
+    for turn in agent_run():
         step = guard.step(turn.total_tokens)             # one call per agent turn
         print(step.lo, step.hi)                          # calibrated remaining-budget interval
         if step.abort:                                   # doomed: spend will exceed budget

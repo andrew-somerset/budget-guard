@@ -91,7 +91,7 @@ def load_warehouse(path: str, keep_censored: bool = False) -> pd.DataFrame:
                 # Exact spend-so-far from the recorded remaining. The old
                 # week-proportional interpolation carried median 26.5% / 12.2%
                 # relative error (item-weeks / cost) on uncensored rows and fed
-                # every spent_-based trigger and loop label with it.
+                # every spent_-based trigger with it.
                 spent = float(total) - float(remaining)
             else:
                 spent = frac * total if total is not None else np.nan

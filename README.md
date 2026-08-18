@@ -1,7 +1,7 @@
 # budget-guard
 
 Training-free, distribution-free **budget guards** for long-horizon LLM agents. Wrap any
-agent loop in a monitor that returns, at every turn, a *calibrated* prediction interval on
+agent in a monitor that returns, at every turn, a *calibrated* prediction interval on
 the resources the run still needs (tokens / dollars / time) plus an abort decision — using
 online conformal prediction, with no fine-tuning, no logits, and no GPU.
 

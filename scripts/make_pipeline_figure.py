@@ -1,6 +1,6 @@
 """scripts/make_pipeline_figure.py — Figure 1: the Budget Guard pipeline.
 
-A methods schematic (not a results plot): agent loop -> prefix features ->
+A methods schematic (not a results plot): agent run -> prefix features ->
 conformal layer -> decisions, with the rollout-end label feedback that makes the
 online methods deployment-faithful. Colors match the results figures (see
 budget_guard/run_*.py palettes) so the paper reads as one system.
@@ -65,7 +65,7 @@ def main() -> None:
 
     top, height = 0.34, 0.52
 
-    box(ax, 0.015, top, 0.185, height, GRAY, "Agent loop",
+    box(ax, 0.015, top, 0.185, height, GRAY, "Agent run",
         ["any LLM agent, unmodified",
          "per-turn usage at turn $k$:",
          "tokens / dollars / time",

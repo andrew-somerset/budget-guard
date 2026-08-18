@@ -45,7 +45,7 @@ MOUNTS_FETCH := -v "$(CURDIR)/data:/app/data"
 outdirs:
 	@mkdir -p "$(CURDIR)/figures" "$(CURDIR)/tables"
 
-.PHONY: help lock build test fetch repro repro-all repro-paper doctor clean shell digest check-numbers outdirs
+.PHONY: help lock build test fetch repro repro-all repro-paper doctor clean appendices shell digest check-numbers outdirs
 
 help:
 	@echo "make lock    regenerate requirements.lock.txt (needs uv, runs on host)"
@@ -58,6 +58,7 @@ help:
 	@echo "make check-numbers  verify the paper's headline numbers against tables/"
 	@echo "make doctor  diagnose why a reproduction run differs (git/data/env/tables)"
 	@echo "make clean   delete generated figures/ and tables/ so the next run starts fresh"
+	@echo "make appendices  build paper/appendices.md (Appendices B and C) from the generated tables"
 	@echo "make shell   interactive shell inside the container"
 	@echo "make digest  print the current upstream digest of the base image tag"
 
@@ -116,7 +117,7 @@ repro-paper: build outdirs
 		python scripts/check_headline_numbers.py && \
 		python scripts/check_paper_numbers.py"
 
-# Verifies headline numbers quoted in notes/ against the generated tables. Runs on the
+# Verifies the paper's headline numbers against the generated tables. Runs on the
 # host (it only reads CSVs) so it works without Docker.
 check-numbers:
 	@test -n "$(PYTHON)" || { echo "No python found on PATH. Activate your env, or: make check-numbers PYTHON=/path/to/python"; exit 1; }
@@ -131,6 +132,13 @@ clean:
 	rm -rf "$(CURDIR)/figures"
 	rm -f "$(CURDIR)"/tables/*.csv "$(CURDIR)"/tables/*.fingerprint.json
 	@echo "cleaned figures/ and tables/ — 'git checkout tables/' restores committed tables"
+
+# Builds Appendices B and C from the generated tables, so the paper's per-run counts
+# and figure captions are never hand-copied. Runs on the host: it only reads CSVs.
+# See paper/README.md for how to use the output.
+appendices:
+	@test -n "$(PYTHON)" || { echo "No python found on PATH. Activate your env, or: make appendices PYTHON=/path/to/python"; exit 1; }
+	$(PYTHON) scripts/make_appendices.py
 
 # Diagnoses reproduction differences in THIS environment (host or container) —
 # run it wherever you ran the experiments that gave unexpected numbers.

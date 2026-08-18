@@ -57,8 +57,8 @@ sentinels = ["scripts/check_headline_numbers.py", "tables/coverage.csv"] + (
 missing_sentinels = [s for s in sentinels if not (ROOT / s).exists()]
 if missing_sentinels:
     note(BAD, "this checkout predates the reproducibility line",
-         f"missing {', '.join(missing_sentinels)}; run from the merge/repro-into-main "
-         "(or merged main) branch — old branches WILL give different numbers")
+         f"missing {', '.join(missing_sentinels)}; check out a recent main commit "
+         "(old commits WILL give different numbers)")
 else:
     note(OK, "reproducibility files present at this commit")
 

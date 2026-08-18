@@ -159,7 +159,8 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     for col, color, marker in [("agent", GRAY, "x"), ("split-CQR", AQUA, "o"),
                                ("windowed-CQR", VIOLET, "o"), ("DtACI", GREEN, "o")]:
         vals = table[col].to_numpy(dtype=float)
-        ax.scatter(vals, ys, s=34, color=color, marker=marker, label=col, zorder=3)
+        dodge = {"agent": 0.0, "split-CQR": 0.18, "windowed-CQR": 0.0, "DtACI": -0.18}[col]
+        ax.scatter(vals, ys + dodge, s=34, color=color, marker=marker, label=col, zorder=3)
     ax.axvline(1 - alpha, color="#4A5361", lw=1.2, ls="--", zorder=1)
     ax.set_yticks(ys, labels, fontsize=8)
     ax.set_xlim(0, 1.05)
@@ -169,7 +170,7 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     ax.set_axisbelow(True)
     # Legend below the axes: loc="lower left" sat on top of the last run's markers.
     ax.legend(frameon=False, fontsize=8, ncol=4, loc="upper center",
-              bbox_to_anchor=(0.5, -0.02))
+              bbox_to_anchor=(0.5, -0.14))
     fig.savefig("figures/allruns.png", dpi=200, bbox_inches="tight")
 
     print(table.to_string(index=False))

@@ -28,6 +28,51 @@ from .split import group_split
 USD_PER_MTOK = 15.0  # blended $/1M tokens assumption; change freely, rankings unaffected
 BLUE, YELLOW, GRAY = "#2a78d6", "#eda100", "#8B93A1"
 DELTAS = (0.02, 0.05, 0.10, 0.15, 0.20, 0.30)
+# Per-env δ label placement when default offset sits on the guard curve.
+_GUARD_LABEL_OFFSET: dict[str, dict[float, tuple[int, int]]] = {
+    "sokoban": {0.15: (-38, -10)},  # down-left in points, no leader line
+}
+_LABEL_BBOX = dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.92)
+
+
+def _annotate_swebench_guard(ax, guard: pd.DataFrame) -> None:
+    """Place each δ next to its marker. 0.02 and 0.05 share the x=1 star; 0.10 is just below."""
+    pts = {round(float(r["param"]), 2):
+           (float(r["pass_rate_retained"]), float(r["cost_of_pass_tokens"]))
+           for _, r in guard.iterrows()}
+    # (key, label, xytext, ha, va) — all in the open gap beside the marker, no leaders
+    placements = (
+        (0.30, "δ=0.30", (0.785, 20580), "right", "center"),
+        (0.20, "δ=0.20", (0.958, 16980), "left", "top"),
+        (0.15, "δ=0.15", (0.958, 18550), "left", "bottom"),
+        (0.10, "δ=0.10", (1.028, 20805), "left", "center"),
+        (0.02, "δ=0.02, 0.05", (1.028, 21254), "left", "center"),
+    )
+    for key, label, xytext, ha, va in placements:
+        ax.annotate(label, pts[key], xytext=xytext, textcoords="data",
+                    fontsize=7.5, color=BLUE, ha=ha, va=va,
+                    bbox=_LABEL_BBOX, zorder=5)
+
+
+def _annotate_guard_labels(ax, guard: pd.DataFrame, env: str) -> None:
+    if env == "swebench":
+        _annotate_swebench_guard(ax, guard)
+        return
+    pt_overrides = _GUARD_LABEL_OFFSET.get(env, {})
+    for _, r in guard.iterrows():
+        p = float(r["param"])
+        key = round(p, 2)
+        xy = (r["pass_rate_retained"], r["cost_of_pass_tokens"])
+        label = f"δ={p:.2f}"
+        if key in pt_overrides:
+            ox, oy = pt_overrides[key]
+            ax.annotate(label, xy, textcoords="offset points", xytext=(ox, oy),
+                        fontsize=7.5, color=BLUE, ha="right" if ox < 0 else "left",
+                        va="top" if oy < 0 else "bottom",
+                        bbox=_LABEL_BBOX, zorder=5)
+        else:
+            ax.annotate(label, xy, textcoords="offset points", xytext=(5, 4),
+                        fontsize=7.5, color=BLUE, zorder=5)
 
 
 def _policy_outcomes(df_test: pd.DataFrame, abort_mask: pd.Series) -> dict:
@@ -101,9 +146,7 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
                zorder=4, label="agent alone")
     ax.plot(guard["pass_rate_retained"], guard["cost_of_pass_tokens"], marker="o", ms=5,
             lw=2, color=BLUE, label="guard (sweep delta)")
-    for _, r in guard.iterrows():
-        ax.annotate(f"δ={r['param']:.2f}", (r["pass_rate_retained"], r["cost_of_pass_tokens"]),
-                    textcoords="offset points", xytext=(5, 4), fontsize=7.5, color=BLUE)
+    _annotate_guard_labels(ax, guard, env)
     ax.plot(caps["pass_rate_retained"], caps["cost_of_pass_tokens"], marker="s", ms=5,
             lw=1.6, ls=":", color=YELLOW, label="hard cap (sweep cap)")
     ax.set_xlabel("fraction of passes retained (vs agent alone)")
@@ -113,6 +156,8 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
     ax.grid(alpha=0.25)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=9)
+    if env == "swebench":
+        ax.set_xlim(0.68, 1.12)
     fig.savefig(f"figures/cost_of_pass_{env}.png", dpi=200)
 
     print(agg.to_string(index=False))

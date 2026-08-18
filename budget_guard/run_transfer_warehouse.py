@@ -39,6 +39,7 @@ from .multiresource import (
     build_features,
     load_warehouse,
 )
+from .plotting import bar_value_labels, nominal_line
 from .split import group_split
 
 _DATA = os.path.join(os.path.dirname(__file__), "..", "data", "bagen_hf", "estimation")
@@ -324,6 +325,7 @@ def main(
         (axes[0], "coverage", "ci_lo", "ci_hi", "all target rollouts"),
         (axes[1], "late_coverage", "late_ci_lo", "late_ci_hi", "late half (after adapting)"),
     ]:
+        bar_groups: list[tuple] = []
         for i, method in enumerate(methods):
             sub = [
                 table[
@@ -354,28 +356,30 @@ def main(
                 yerr=yerr,
                 capsize=2,
                 error_kw={"lw": 0.8, "alpha": 0.7},
+                zorder=1,
             )
-            for bar, value in zip(bars, vals):
-                ax.text(
-                    bar.get_x() + bar.get_width() / 2,
-                    min(value + 0.025, 1.07),
-                    f"{value:.2f}",
-                    ha="center",
-                    fontsize=7,
-                )
-        ax.axhline(1 - alpha, color="#4A5361", lw=1.2, ls="--")
+            for patch in bars:
+                patch.set_zorder(1)
+            bar_groups.append((bars, vals, yerr[1]))
         ax.set_xticks(xs, models)
-        ax.set_ylim(0, 1.12)
+        ax.set_ylim(0, 1.15)
         ax.set_title(subtitle)
         ax.grid(axis="y", alpha=0.25)
         ax.set_axisbelow(True)
+        nominal_line(ax, alpha, zorder=4)
+        for bars, vals, err_up in bar_groups:
+            bar_value_labels(ax, bars, vals, fmt="{:.2f}", fontsize=7,
+                             yerr_upper=err_up, nominal=1 - alpha,
+                             nominal_nudge_for={"0.79"})
     axes[0].set_ylabel("joint coverage (all 3 Warehouse resources)")
-    axes[0].legend(frameon=False, fontsize=8, ncol=2, loc="lower left")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, frameon=False, fontsize=8, ncol=4,
+               loc="upper center", bbox_to_anchor=(0.5, -0.02))
     fig.suptitle(
         "Warehouse model-swap: rollout-safe joint adaptation\n"
         f"calibrated on claude-opus-4.7 ({len(seeds)} seeds, rollout-cluster 90% CI; window={window})"
     )
-    fig.savefig("figures/transfer_warehouse.png", dpi=200)
+    fig.savefig("figures/transfer_warehouse.png", dpi=200, bbox_inches="tight")
 
     joint = table[table["resource"] == "ALL (joint)"]
     print(joint.to_string(index=False))

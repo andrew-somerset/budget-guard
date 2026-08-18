@@ -22,6 +22,7 @@ from .multiresource import (
     joint_intervals,
     load_warehouse,
 )
+from .plotting import bar_value_labels, nominal_line
 from .split import group_split
 
 PATH = os.path.join(
@@ -81,25 +82,29 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA,
     width = 0.21
 
     fig, ax = plt.subplots(figsize=(9, 4.4), constrained_layout=True)
+    bar_groups: list[tuple] = []
     for i, scheme in enumerate(labels):
         sel = table[table["scheme"] == scheme].iloc[0]
         vals = [sel[c] for c in cats]
         offset = (i - (len(labels) - 1) / 2) * width
-        bars = ax.bar(xs + offset, vals, width=width - 0.03, color=colors[scheme], label=scheme)
-        for bar, v in zip(bars, vals):
-            ax.text(bar.get_x() + bar.get_width() / 2, v + 0.012, f"{v:.2f}",
-                    ha="center", fontsize=8)
-    ax.axhline(1 - alpha, color="#4A5361", lw=1.2, ls="--")
-    ax.text(0.995, 1 - alpha + 0.015, f"nominal {1 - alpha:.2f}", ha="right",
-            transform=ax.get_yaxis_transform(), fontsize=9, color="#4A5361")
+        bars = ax.bar(xs + offset, vals, width=width - 0.03, color=colors[scheme],
+                      label=scheme, zorder=1)
+        for patch in bars:
+            patch.set_zorder(1)
+        bar_groups.append((bars, vals))
     ax.set_xticks(xs, ["time", "warehouse", "cost", "JOINT (all 3)"])
-    ax.set_ylim(0, 1.12)
+    ax.set_ylim(0, 1.15)
     ax.set_ylabel("coverage")
     ax.set_title(f"C2 multi-resource (Warehouse, opus-4.7): per-resource and joint coverage, "
                  f"like-for-like, mean over {len(seeds)} seeds")
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
-    ax.legend(frameon=False, fontsize=9, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 1.06))
+    nominal_line(ax, alpha, zorder=4)
+    for bars, vals in bar_groups:
+        bar_value_labels(ax, bars, vals, fmt="{:.2f}", fontsize=8,
+                         nominal=1 - alpha, nominal_nudge_for={"0.87"})
+    ax.legend(frameon=False, fontsize=9, ncol=3, loc="upper center",
+              bbox_to_anchor=(0.5, -0.08))
     fig.savefig(f"{outdir}/joint_vs_marginal.png", dpi=200)
 
     print(table.to_string(index=False))

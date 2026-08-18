@@ -26,10 +26,38 @@ from .economic import (
     hard_cap_baseline,
 )
 from .features import build_xy
+from .plotting import annotate_param_clusters
 from .split import group_split
 
 BLUE, YELLOW, GRAY, GREEN = "#2a78d6", "#eda100", "#8B93A1", "#008300"
 DELTAS = (0.02, 0.05, 0.10, 0.15, 0.20, 0.30, 0.40)
+_LABEL_BBOX = dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.92)
+
+
+def _annotate_swebench_combined(ax, combined: pd.DataFrame) -> None:
+    """Hand-placed δ labels — the steep early segment crowds auto-clustering."""
+    row30 = combined.loc[combined["delta"] == 0.30].iloc[0]
+    row40 = combined.loc[combined["delta"] == 0.40].iloc[0]
+    ax.annotate(
+        "δ=0.02–0.20", (0, 0), xytext=(0.11, 0.58),
+        textcoords="data", fontsize=7.5, color=GREEN, ha="left", va="center",
+        bbox=_LABEL_BBOX,
+        arrowprops=dict(arrowstyle="-", color=GREEN, lw=0.8,
+                        connectionstyle="arc3,rad=0.4"),
+        zorder=5,
+    )
+    ax.annotate(
+        "δ=0.30",
+        (row30["false_abort_rate"], row30["doomed_savings_frac"]),
+        xytext=(-18, 4), textcoords="offset points", fontsize=7.5, color=GREEN,
+        ha="right", va="center", bbox=_LABEL_BBOX, zorder=5,
+    )
+    ax.annotate(
+        "δ=0.40",
+        (row40["false_abort_rate"], row40["doomed_savings_frac"]),
+        xytext=(14, 12), textcoords="offset points", fontsize=7.5, color=GREEN,
+        ha="left", va="center", bbox=_LABEL_BBOX, zorder=5,
+    )
 
 
 def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
@@ -90,9 +118,14 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
             lw=2, color=BLUE, label="guard: feasibility only")
     ax.plot(combined["false_abort_rate"], combined["doomed_savings_frac"], marker="D",
             ms=5, lw=2, color=GREEN, label="guard: feasibility + interval (C1→C3)")
-    for _, r in combined.iterrows():
-        ax.annotate(f"δ={r['delta']:.2f}", (r["false_abort_rate"], r["doomed_savings_frac"]),
-                    textcoords="offset points", xytext=(6, -4), fontsize=7.5, color=GREEN)
+    if env == "swebench":
+        _annotate_swebench_combined(ax, combined)
+    else:
+        annotate_param_clusters(
+            ax, combined["false_abort_rate"], combined["doomed_savings_frac"],
+            combined["delta"], color=GREEN, x_tol=0.05, y_tol=0.08,
+            xytext=(10, 12), ha="left",
+        )
     ax.plot(caps["false_abort_rate"], caps["doomed_savings_frac"], marker="s", ms=5,
             lw=1.6, ls=":", color=YELLOW, label="hard token cap (sweep cap)")
     ax.set_xlabel("false-abort rate on feasible runs (test)")

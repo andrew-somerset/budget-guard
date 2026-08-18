@@ -20,6 +20,7 @@ from .conformal import DEFAULT_ALPHA, cqr_split, mondrian_cqr, split_conformal_a
 from .data import load_env
 from .features import build_xy
 from .metrics import marginal_coverage, mean_width, normalized_width
+from .plotting import bar_value_labels, nominal_line
 from .split import group_split
 
 # dataviz-validated categorical palette (light surface)
@@ -82,22 +83,22 @@ def run(env: str = "sokoban", seed: int = 0, alpha: float = DEFAULT_ALPHA):
     ax = axes[0]
     names = list(results)
     covs = [table.loc[table["method"] == m, "coverage"].item() for m in names]
-    bars = ax.bar(names, covs, width=0.5, color=[colors[m] for m in names])
-    for bar, cov in zip(bars, covs):
-        ax.text(bar.get_x() + bar.get_width() / 2, cov + 0.015, f"{cov:.3f}",
-                ha="center", fontsize=10)
-    ax.axhline(1 - alpha, color=GRAY, lw=1.2, ls="--")
-    ax.text(0.98, 1 - alpha + 0.015, f"nominal {1 - alpha:.2f}", ha="right",
-            transform=ax.get_yaxis_transform(), fontsize=9, color=GRAY)
-    ax.set_ylim(0, 1.05)
+    bars = ax.bar(names, covs, width=0.5, color=[colors[m] for m in names], zorder=1)
+    for patch in bars:
+        patch.set_zorder(1)
+    ax.set_ylim(0, 1.12)
     ax.set_ylabel("marginal coverage")
     ax.set_title(f"{env}: marginal coverage (test, split by rollout)")
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
+    nominal_line(ax, alpha, color=GRAY, zorder=4)
+    bar_value_labels(ax, bars, covs, fmt="{:.3f}", fontsize=9, nominal=1 - alpha)
 
     ax = axes[1]
+    markers = {"split-absres": "o", "split-CQR": "s", "Mondrian-CQR": "D"}
     for name in names:
-        ax.plot(ks, by_k[name], marker="o", ms=4, lw=2, color=colors[name], label=name)
+        ax.plot(ks, by_k[name], marker=markers[name], ms=5, lw=2, color=colors[name],
+                label=name)
     ax.axhline(1 - alpha, color=GRAY, lw=1.2, ls="--")
     ax.set_ylim(0, 1.05)
     ax.set_xlabel("turn index k")
@@ -105,7 +106,7 @@ def run(env: str = "sokoban", seed: int = 0, alpha: float = DEFAULT_ALPHA):
     ax.set_title("coverage conditional on trajectory depth")
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
-    ax.legend(frameon=False, fontsize=9)
+    ax.legend(frameon=False, fontsize=9, loc="lower right")
 
     fig.savefig(f"figures/gap_{env}.png", dpi=200)
     print(table.to_string(index=False))

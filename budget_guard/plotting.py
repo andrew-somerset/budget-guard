@@ -40,10 +40,12 @@ def group_bar_width(n_series: int, group_span: float = 0.82) -> float:
     return group_span / max(n_series, 1)
 
 
-def nominal_line(ax, alpha: float, color: str = "#4A5361"):
+def nominal_line(ax, alpha: float, color: str = "#4A5361", zorder: float = 4.0):
     """Draw the 1-alpha reference line, labelled via the legend (never on the canvas)."""
-    ax.axhline(1 - alpha, color=color, lw=1.2, ls="--",
-               label=f"nominal {1 - alpha:.2f}")
+    level = 1 - alpha
+    x0, x1 = ax.get_xlim()
+    ax.plot([x0, x1], [level, level], color=color, lw=1.2, ls="--", zorder=zorder,
+            solid_capstyle="butt", label=f"nominal {level:.2f}")
 
 
 def mark_unbounded(ax, bars, fracs, values, fontsize: float = 6.5) -> bool:
@@ -68,3 +70,90 @@ def mark_unbounded(ax, bars, fracs, values, fontsize: float = 6.5) -> bool:
 
 UNBOUNDED_NOTE = ("hatched ∞:NN% = coverage reached with unbounded intervals on NN% of the "
                   "stream (valid but uninformative)")
+
+
+def bar_value_labels(ax, bars, values, *, fmt="{:.2f}", fontsize: float = 8,
+                     pad: float = 0.015, yerr_upper=None, nominal: float | None = None,
+                     nominal_nudge_for: set[str] | None = None) -> None:
+    """Write bar values above each bar (and above error caps when provided).
+
+    When ``nominal`` is set with ``nominal_nudge_for``, listed labels are placed at
+    least ``nominal + 0.015`` (keeps other values on the bar).
+    """
+    err_ups = yerr_upper if yerr_upper is not None else [0.0] * len(bars)
+    for bar, value, err_up in zip(bars, values, err_ups):
+        if not np.isfinite(value):
+            continue
+        x = bar.get_x() + bar.get_width() / 2
+        top = float(value) + (float(err_up) if np.isfinite(err_up) else 0.0)
+        y = top + pad
+        label = fmt.format(value)
+        if nominal is not None and nominal_nudge_for is not None and label in nominal_nudge_for:
+            y = max(y, nominal + 0.015)
+        ax.text(x, y, label,
+                ha="center", va="bottom", fontsize=fontsize, zorder=6)
+
+
+def annotate_param_clusters(ax, xs, ys, params, *, color: str, fmt: str = "δ={:.2f}",
+                            x_tol: float = 0.03, y_tol: float = 0.04,
+                            fontsize: float = 7.5, xytext=(8, 4),
+                            ha: str = "left") -> None:
+    """One label per cluster of nearby (x, y) points instead of stacked δ tags."""
+    xs = np.asarray(xs, dtype=float)
+    ys = np.asarray(ys, dtype=float)
+    params = np.asarray(params, dtype=float)
+    clusters: list[list[int]] = []
+    for i in np.argsort(params):
+        placed = False
+        for cluster in clusters:
+            j = cluster[0]
+            if abs(xs[i] - xs[j]) <= x_tol and abs(ys[i] - ys[j]) <= y_tol:
+                cluster.append(int(i))
+                placed = True
+                break
+        if not placed:
+            clusters.append([int(i)])
+    used: list[tuple[float, float, float]] = []
+    early_slots = 0
+    label_bbox = dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.92)
+    for cluster in clusters:
+        cx = float(np.mean(xs[cluster]))
+        cy = float(np.mean(ys[cluster]))
+        ps = sorted(float(params[k]) for k in cluster)
+        if abs(ps[-1] - ps[0]) < 1e-9:
+            label = fmt.format(ps[0])
+        else:
+            label = f"δ={ps[0]:.2f}–{ps[-1]:.2f}"
+        if cx <= 0.065 and cy <= 0.10:
+            # Origin-adjacent clusters: staggered callout box clear of the curve.
+            tx = 0.05 + 0.09 * early_slots
+            ty = 0.42 + 0.09 * early_slots
+            rad = -0.35 if early_slots % 2 == 0 else 0.35
+            early_slots += 1
+            ax.annotate(
+                label, (cx, cy), xytext=(tx, ty),
+                xycoords="data", textcoords="data",
+                fontsize=fontsize, color=color,
+                ha="left", va="center", bbox=label_bbox,
+                arrowprops=dict(arrowstyle="-", color=color, lw=0.8,
+                                shrinkA=2, shrinkB=2,
+                                connectionstyle=f"arc3,rad={rad}"),
+                zorder=5,
+            )
+            used.append((cx, cy, 0.0))
+            continue
+        ox, oy = xytext
+        ha_use = ha
+        if abs(ox) == abs(xytext[0]):
+            side = -1 if len(used) % 2 == 0 else 1
+            ox = side * abs(xytext[0])
+            ha_use = "right" if side < 0 else "left"
+        for px, py, poy in used:
+            if abs(cx - px) < max(x_tol * 3, 0.08) and abs(cy - py) < max(y_tol * 3, 0.12):
+                oy = poy + 14
+        ax.annotate(
+            label, (cx, cy), textcoords="offset points", xytext=(ox, oy),
+            fontsize=fontsize, color=color, ha=ha_use, va="center", bbox=label_bbox,
+            zorder=5,
+        )
+        used.append((cx, cy, oy))

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import csv
 import os
-from collections import defaultdict
 
 import matplotlib
 matplotlib.use("Agg")
@@ -59,24 +58,26 @@ def main():
     ax.plot([agent[0]], [agent[1]], marker="*", ms=18, color=GREEN, mec="white", mew=1.2,
             ls="none", label="agent alone (no stopping)", zorder=4)
 
-    # sparse direct labels, all placed in the empty right margin; interpretation
-    # lives in the caption, not the plot
-    ax.annotate("δ ≤ 0.05 (aborts nothing)", xy=(1.0, 1.6096), xytext=(12, 0),
+    # three operating regions; place each in empty space so they cannot stack
+    ax.annotate("δ=0.02–0.05", xy=(1.0, agent[1]), xytext=(18, -8),
                 textcoords="offset points", ha="left", va="center", fontsize=9, color=BLUE)
-    ax.annotate("δ = 0.10–0.20", xy=(1.0, 0.871), xytext=(12, 0),
+    ax.annotate("δ=0.10–0.20", xy=(1.0, 0.871), xytext=(18, 0),
                 textcoords="offset points", ha="left", va="center", fontsize=9, color=BLUE)
-    ax.annotate("δ = 0.30–0.40", xy=(0.9487, 0.8617), xytext=(-8, -16),
-                textcoords="offset points", ha="right", va="top", fontsize=9, color=BLUE)
-    ax.annotate("agent alone", xy=(1.0, 1.6096), xytext=(12, 14),
+    ax.annotate("δ=0.30–0.40", xy=(0.949, 0.862), xytext=(0.86, 0.97),
+                textcoords="data", ha="center", va="bottom", fontsize=9, color=BLUE,
+                bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.92),
+                arrowprops=dict(arrowstyle="-", color=BLUE, lw=0.7, shrinkA=2, shrinkB=2))
+    ax.annotate("agent alone", xy=(agent[0], agent[1]), xytext=(18, 16),
                 textcoords="offset points", ha="left", va="center", fontsize=9, color=GREEN)
-    ax.annotate("tightest cap that\nkeeps every success", xy=(caps[-1][1], caps[-1][2]),
-                xytext=(0, -12), textcoords="offset points", ha="center", va="top",
+    ax.annotate("tightest cap that\nkeeps every success",
+                xy=(caps[-1][1], caps[-1][2]),
+                xytext=(0, 22), textcoords="offset points", ha="center", va="bottom",
                 fontsize=9, color=ORANGE)
 
     ax.set_xlabel("fraction of successful runs retained (vs agent alone)", fontsize=10, color=INK)
     ax.set_ylabel("cost of pass ($M per success)", fontsize=10, color=INK)
-    ax.set_title("Warehouse: cost of pass against successes retained\n"
-                 "the cap frontier buys savings with lost successes; the guard does not",
+    ax.set_title("C4: Warehouse cost-of-pass frontier\n"
+                 "Guard halves $/success at full pass retention; hard caps trade successes for savings",
                  fontsize=11, color=INK, pad=10)
 
     ax.set_xticks([0.4,0.5,0.6,0.7,0.8,0.9,1.0])

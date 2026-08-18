@@ -20,6 +20,7 @@ import pandas as pd
 from .conformal import DEFAULT_ALPHA, _cqr_scores, _finite_sample_quantile, _fit_cqr
 from .data import load_env
 from .features import build_xy
+from .plotting import nominal_line
 from .split import group_split
 
 BLUE, GRAY = "#2a78d6", "#8B93A1"
@@ -83,11 +84,11 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4),
                     color=BLUE, alpha=0.18, lw=0, label="10-90% over seeds x redraws")
     ax.plot(table["n_cal_rollouts"], table["coverage_mean"], marker="o", ms=5, lw=2,
             color=BLUE, label="mean coverage")
-    ax.axhline(1 - alpha, color=GRAY, lw=1.2, ls="--")
-    ax.text(0.98, 1 - alpha + 0.008, f"nominal {1 - alpha:.2f}", ha="right",
-            transform=ax.get_yaxis_transform(), fontsize=9, color=GRAY)
+    nominal_line(ax, alpha, color=GRAY)
     ax.set_xscale("log")
-    ax.set_xticks(budgets, [str(b) for b in budgets])
+    ax.set_xticks(budgets)
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _pos: f"{int(v)}"))
+    ax.xaxis.set_minor_locator(plt.NullLocator())
     ax.set_xlabel("calibration rollouts (completed runs logged)")
     ax.set_ylabel("test coverage")
     ax.set_ylim(0.6, 1.02)
@@ -95,7 +96,7 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4),
                  f"{len(seeds)} seeds x {redraws} redraws)")
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
-    ax.legend(frameon=False, fontsize=9)
+    ax.legend(frameon=False, fontsize=9, loc="lower right")
     fig.savefig(f"figures/label_efficiency_{env}.png", dpi=200)
 
     print(table.to_string(index=False))

@@ -102,30 +102,48 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
 
     order = ["k=1", "k=2", "k>=3"]
     envs = list(ENVS)
-    fig, axes = plt.subplots(1, len(envs), figsize=(3.4 * len(envs), 4.0),
+
+    # Floor the y-axis below the lowest CI actually drawn. With a fixed 0.5 floor the
+    # searchr1 k=2 interval (ci_lo 0.43) ran off the bottom of the panel with no cue
+    # that it had been cut.
+    drawn = agg[agg["slice"].isin(order)]
+    ylo = float(min(0.5, drawn["ci_lo"].min() - 0.03)) if not drawn.empty else 0.5
+
+    fig, axes = plt.subplots(1, len(envs), figsize=(3.6 * len(envs), 4.0),
                              constrained_layout=True, sharey=True)
     axes = np.atleast_1d(axes)
     for ax, env in zip(axes, envs):
         for method, color in [("split-CQR", AQUA), ("Mondrian-CQR", VIOLET)]:
-            sub = agg[(agg["env"] == env) & (agg["method"] == method)
-                      & (agg["slice"].isin(order))].set_index("slice").reindex(order).dropna(subset=["coverage"])
-            if sub.empty:
+            # Reindex WITHOUT dropping: every panel keeps the same three x slots, so a
+            # depth means the same position in all of them. Dropping first put
+            # searchr1's k=2 at the far-right slot, aligning it with sokoban's k>=3.
+            sub = (agg[(agg["env"] == env) & (agg["method"] == method)]
+                   .set_index("slice").reindex(order))
+            have = sub["coverage"].notna().to_numpy()
+            if not have.any():
                 continue
-            xs = np.arange(len(sub))
-            yerr = np.vstack([sub["coverage"] - sub["ci_lo"], sub["ci_hi"] - sub["coverage"]])
-            ax.errorbar(xs, sub["coverage"], yerr=yerr, marker="o", ms=5, lw=2,
+            xs = np.arange(len(order))[have]
+            cov = sub["coverage"].to_numpy()[have]
+            yerr = np.vstack([cov - sub["ci_lo"].to_numpy()[have],
+                              sub["ci_hi"].to_numpy()[have] - cov])
+            ax.errorbar(xs, cov, yerr=yerr, marker="o", ms=5, lw=2,
                         capsize=3, color=color, label=method)
-            ax.set_xticks(xs, list(sub.index))
+        ax.set_xticks(np.arange(len(order)), order)
+        # Padding keeps the outer ticks off the panel edges; without it the last tick of
+        # one panel and the first of the next collided across the gap ("k>=3 k=1").
+        ax.set_xlim(-0.5, len(order) - 0.5)
         ax.axhline(1 - alpha, color=GRAY, lw=1.2, ls="--")
         ax.set_title(env)
-        ax.set_ylim(0.5, 1.05)
+        ax.set_ylim(ylo, 1.05)
         ax.grid(alpha=0.25)
         ax.set_axisbelow(True)
-    axes[0].set_ylabel("coverage (mean over seeds; band = pooled seed×rollout bootstrap)")
+    # Short label: the long form overflowed the 4-inch axis and was clipped at both
+    # ends. What the bars mean belongs in the caption, per NeurIPS convention.
+    axes[0].set_ylabel("coverage")
     axes[-1].legend(frameon=False, fontsize=9)
-    fig.suptitle(f"Conditional coverage by turn depth — split-CQR vs Mondrian "
+    fig.suptitle(f"Conditional coverage by turn depth: split-CQR vs Mondrian-CQR "
                  f"(nominal {1 - alpha:.2f})")
-    fig.savefig("figures/conditional_coverage.png", dpi=200)
+    fig.savefig("figures/conditional_coverage.png", dpi=200, bbox_inches="tight")
 
     print(agg.to_string(index=False))
     print("\nworst-slice coverage (min over k-buckets, mean over seeds):")

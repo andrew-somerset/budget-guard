@@ -49,6 +49,12 @@ def nominal_line(ax, alpha: float, color: str = "#4A5361"):
 def mark_unbounded(ax, bars, fracs, values, fontsize: float = 6.5) -> bool:
     """Hatch bars that achieved their coverage partly with unbounded intervals.
 
+    The tag sits mid-bar on a white plate in dark ink. It used to be white text
+    rotated 90 degrees directly on the hatching, which is the least legible
+    combination available and was illegible at column width, even though this tag
+    carries the paper's honesty mechanism: coverage bought with infinite intervals.
+    Rotation is now used only when the bar is too narrow to fit the tag flat.
+
     Returns True if any bar was marked, so the caller can add the explanatory note.
     """
     marked = False
@@ -59,9 +65,17 @@ def mark_unbounded(ax, bars, fracs, values, fontsize: float = 6.5) -> bool:
         bar.set_edgecolor("#1C2128")
         bar.set_linewidth(0.6)
         tag = f"∞:{frac:.0%}" if frac >= 0.005 else "∞:<1%"
+        # Bar width in pixels decides orientation: a flat tag needs roughly
+        # 0.62 * fontsize px per character plus padding.
+        x0 = ax.transData.transform((bar.get_x(), 0.0))[0]
+        x1 = ax.transData.transform((bar.get_x() + bar.get_width(), 0.0))[0]
+        flat = (x1 - x0) >= 0.62 * fontsize * len(tag) + 6.0
         ax.text(bar.get_x() + bar.get_width() / 2, value / 2,
                 tag, ha="center", va="center",
-                fontsize=fontsize, color="#FFFFFF", rotation=90)
+                fontsize=fontsize, color="#1C2128",
+                rotation=0 if flat else 90,
+                bbox=dict(boxstyle="round,pad=0.18", facecolor="#FFFFFF",
+                          edgecolor="none", alpha=0.88))
         marked = True
     return marked
 

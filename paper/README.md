@@ -44,6 +44,14 @@ itself if:
 A zero exit with "all sources present and current" means the appendices match the
 verified data.
 
+## What guards this
+
+`tests/test_appendices.py` pins the run-label mapping in
+`budget_guard/model_names.py`, which is shared by the generator and by the
+figures so a model cannot be named one way in Figure 6 and another way in
+Table 3. It also checks, whenever both artifacts exist, that the generated
+table still agrees with `tables/allruns.csv`. Run it with `make test`.
+
 ## Keep the cross-references
 
 The body text points into both appendices:

@@ -31,6 +31,6 @@ Figure 6: Model-swap transfer on SWE-bench, guard calibrated on Claude Opus 4.7.
 
 [insert image: figures/final/transfer_swebench.png]
 
-Figure 7: Conditional coverage by turn depth. The Sokoban k = 1 slice is the only place a marginal number materially overstates performance, and it is the slice the abort decision depends on most.
+Figure 7: Conditional coverage by turn depth, with 90% rollout-cluster bootstrap intervals pooled across five seeds. The Sokoban k = 1 slice is the only place a marginal number materially overstates performance, and it is the slice the abort decision depends on most.
 
 [insert image: figures/conditional_coverage.png]

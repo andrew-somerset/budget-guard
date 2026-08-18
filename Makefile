@@ -27,13 +27,17 @@ PYTHON ?= $(shell command -v python 2>/dev/null || command -v python3 2>/dev/nul
 # in the parent of the user's repo — outside the project entirely — and the only symptom
 # is a test quietly skipping. $(wildcard) makes the mount vanish instead.
 #
+# paper/ is dockerignored (it is not needed to build the image) but is mounted here so
+# the generated-appendix consistency test runs instead of skipping.
+#
 # Inputs are read-only so a run cannot mutate the data it was calibrated on. BAGEN lives
 # outside the repo and is mounted at /BAGEN (matching BAGEN_DIR in the Dockerfile), but
 # it is an optimization, not a requirement: the smoke fixture is vendored at
 # tests/fixtures/, so the suite passes without it. See extract.py::_default_smoke_path.
 BAGEN_HOST := $(abspath $(CURDIR)/../BAGEN)
 IN     := $(if $(wildcard $(CURDIR)/data),-v "$(CURDIR)/data:/app/data:ro",) \
-          $(if $(wildcard $(BAGEN_HOST)),-v "$(BAGEN_HOST):/BAGEN:ro",)
+          $(if $(wildcard $(BAGEN_HOST)),-v "$(BAGEN_HOST):/BAGEN:ro",) \
+          $(if $(wildcard $(CURDIR)/paper),-v "$(CURDIR)/paper:/app/paper:ro",)
 OUT    := -v "$(CURDIR)/figures:/app/figures" -v "$(CURDIR)/tables:/app/tables"
 MOUNTS := $(IN) $(OUT)
 

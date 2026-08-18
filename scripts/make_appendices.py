@@ -18,26 +18,21 @@ Usage: python scripts/make_appendices.py    (or: make appendices)
 from __future__ import annotations
 
 import csv
+import importlib.util
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TABLES, FIGURES, OUT = ROOT / "tables", ROOT / "figures", ROOT / "paper" / "appendices.md"
 
-# Raw run labels in allruns.csv are directory names from the BAGEN download and
-# vary in spelling across environments ("claude-opus-4.7", "claude-opus4.7-claude-opus-4",
-# "Claude-Opus-4.7"). Order matters: check Codex before the generic GPT-5.2 rule,
-# and 4.7 before 4.6, since several labels contain both a version and a stray "-4".
-MODEL_RULES = (
-    ("codex", "GPT-5.2-Codex"),
-    ("gpt5.2", "GPT-5.2-instant"),
-    ("gpt-5.2", "GPT-5.2-instant"),
-    ("gemini", "Gemini 3.1 Pro"),
-    ("qwen", "Qwen3-235B"),
-    ("sonnet", "Claude Sonnet 4.6"),
-)
-MODEL_ORDER = ("Claude Opus 4.7", "Claude Opus 4.6", "Claude Sonnet 4.6",
-               "GPT-5.2-instant", "GPT-5.2-Codex", "Gemini 3.1 Pro", "Qwen3-235B")
+# One source of truth for run-label to paper-name mapping, shared with the figures.
+# Loaded directly from the file so this script stays standard-library only.
+_spec = importlib.util.spec_from_file_location(
+    "bg_model_names", ROOT / "budget_guard" / "model_names.py")
+_names = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_names)
+model_name_of, MODEL_ORDER = _names.display_name, _names.ORDER
+
 ENV_NAMES = {"sokoban": "Sokoban", "searchr1": "Search-R1", "swebench": "SWE-bench"}
 ENV_ORDER = ("sokoban", "searchr1", "swebench")
 
@@ -53,9 +48,10 @@ FIGURES_IN_C = (
      "coverage is comparable between frozen split-CQR and windowed-CQR; the difference "
      "is the width of the seed-to-seed band."),
     (7, "figures/conditional_coverage.png", "tables/conditional_coverage.csv",
-     "Conditional coverage by turn depth. The Sokoban k = 1 slice is the only place a "
-     "marginal number materially overstates performance, and it is the slice the abort "
-     "decision depends on most."),
+     "Conditional coverage by turn depth, with 90% rollout-cluster bootstrap intervals "
+     "pooled across five seeds. The Sokoban k = 1 slice is the only place a marginal "
+     "number materially overstates performance, and it is the slice the abort decision "
+     "depends on most."),
 )
 
 problems: list[str] = []
@@ -69,14 +65,11 @@ def die_if_missing(path: Path, what: str) -> bool:
 
 
 def model_name(label: str) -> str:
-    low = label.lower()
-    for needle, name in MODEL_RULES:
-        if needle in low:
-            return name
-    if "opus" in low:
-        return "Claude Opus 4.7" if "4.7" in low or "4-7" in low else "Claude Opus 4.6"
-    problems.append(f"unrecognized run label in allruns.csv: {label!r} (add a rule)")
-    return label
+    name = model_name_of(label)
+    if name == label:
+        problems.append(f"unrecognized run label in allruns.csv: {label!r} "
+                        "(add a rule to budget_guard/model_names.py)")
+    return name
 
 
 def read_runs() -> list[tuple[str, str, int, int]]:

@@ -29,6 +29,7 @@ import pandas as pd
 from .conformal import DEFAULT_ALPHA, aci_cqr, cqr_split, dtaci, windowed_cqr, tune_gamma
 from .extract import flatten_to_samples, load_rollouts, samples_to_dataframe
 from .features import build_xy
+from .model_names import display_name
 from .metrics import (
     frac_unbounded,
     marginal_coverage,
@@ -186,7 +187,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
             ax.text(bar.get_x() + bar.get_width() / 2, float(s["ci_hi"]) + 0.02, f"{v:.2f}",
                     ha="center", va="bottom", fontsize=7.5)
     nominal_line(ax, alpha)
-    ax.set_xticks(xs, models)
+    ax.set_xticks(xs, [display_name(m) for m in models])
     ax.set_ylim(0, 1.16)
     ax.set_ylabel("marginal coverage on target stream")
     title = ("Model-swap transfer (SWE-bench): guard calibrated on claude-opus-4.7, "

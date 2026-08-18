@@ -18,7 +18,7 @@ import pandas as pd
 
 from .economic import _run_rule, calibrate_threshold, evaluate_stopping, fit_feasibility
 from .multiresource import build_features, load_warehouse
-from .plotting import figure_title
+from .plotting import apply_figure_title, figure_title
 from .run_multiresource import PATH
 from .split import group_split
 
@@ -106,7 +106,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), outdir: str = "figures"):
                 ms=5, lw=2 if rule == "guard" else 1.6, ls=ls, color=color, label=rule)
     ax.set_xlabel("false-abort rate on feasible runs (test)")
     ax.set_ylabel("fraction of doomed-run $ saved")
-    ax.set_title(figure_title(
+    apply_figure_title(ax, figure_title(
         "Abort frontier — Warehouse",
         f"Native USD accounting, mean over {len(seeds)} split seeds",
     ))

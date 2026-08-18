@@ -20,7 +20,7 @@ import pandas as pd
 from .conformal import DEFAULT_ALPHA, _cqr_scores, _finite_sample_quantile, _fit_cqr
 from .data import load_env
 from .features import build_xy
-from .plotting import figure_title, nominal_line
+from .plotting import apply_figure_title, figure_title, nominal_line
 from .split import group_split
 
 BLUE, GRAY = "#2a78d6", "#8B93A1"
@@ -92,7 +92,7 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4),
     ax.set_xlabel("calibration rollouts (completed runs logged)")
     ax.set_ylabel("test coverage")
     ax.set_ylim(0.6, 1.02)
-    ax.set_title(figure_title(
+    apply_figure_title(ax, figure_title(
         f"Label efficiency — {env}",
         f"Split-CQR, α={alpha}, {len(seeds)} seeds × {redraws} redraws",
     ))

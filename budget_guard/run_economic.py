@@ -26,7 +26,7 @@ from .economic import (
     hard_cap_baseline,
 )
 from .features import build_xy
-from .plotting import annotate_param_clusters, figure_title
+from .plotting import annotate_param_clusters, apply_figure_title, figure_title
 from .split import group_split
 
 BLUE, YELLOW, GRAY, GREEN = "#2a78d6", "#eda100", "#8B93A1", "#008300"
@@ -132,7 +132,7 @@ def run(env: str = "sokoban", seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
     ax.set_ylabel("fraction of doomed-run spend saved")
     ax.set_xlim(-0.01, max(0.5, guard["false_abort_rate"].max() + 0.05))
     ax.set_ylim(0, 1.0)
-    ax.set_title(figure_title(
+    apply_figure_title(ax, figure_title(
         f"Abort frontier — {env}",
         f"Mean over {len(seeds)} split seeds",
     ))

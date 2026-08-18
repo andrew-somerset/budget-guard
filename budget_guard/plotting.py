@@ -59,6 +59,30 @@ def figure_title(main: str, subtitle: str = "") -> str:
     return main if not subtitle else f"{main}\n{subtitle}"
 
 
+# ~two blank text lines between on-figure title block and plot content.
+TITLE_PAD = 22.0
+TITLE_GAP_LINES = 2
+TITLE_LINE_FRAC = 0.038  # figure-height fraction per title line (~10.5pt)
+
+
+def figure_top_rect(title: str, *, gap_lines: int = TITLE_GAP_LINES) -> float:
+    """``tight_layout(rect=...)`` top coordinate leaving room for suptitle + gap."""
+    n_lines = title.count("\n") + 1
+    return max(1.0 - TITLE_LINE_FRAC * (n_lines + gap_lines), 0.70)
+
+
+def apply_figure_title(ax, title: str, *, fontsize: float = 10.5, pad: float | None = None,
+                       **kwargs) -> None:
+    ax.set_title(title, fontsize=fontsize, pad=TITLE_PAD if pad is None else pad, **kwargs)
+
+
+def apply_figure_suptitle(fig, title: str, *, fontsize: float = 10.5) -> float:
+    """Add a suptitle; return ``rect`` top for ``fig.tight_layout(rect=(0,0,1,top))``."""
+    top = figure_top_rect(title)
+    fig.suptitle(title, fontsize=fontsize, y=min(0.98, top + TITLE_LINE_FRAC * 0.5))
+    return top
+
+
 def mark_unbounded(ax, bars, fracs, values, fontsize: float = 6.5) -> bool:
     """Hatch bars that achieved their coverage partly with unbounded intervals.
 

@@ -20,7 +20,7 @@ from .conformal import DEFAULT_ALPHA, cqr_split, mondrian_cqr, split_conformal_a
 from .data import load_env
 from .features import build_xy
 from .metrics import marginal_coverage, mean_width, normalized_width
-from .plotting import bar_value_labels, figure_title, nominal_line
+from .plotting import apply_figure_suptitle, bar_value_labels, figure_title, nominal_line
 from .split import group_split
 
 # dataviz-validated categorical palette (light surface)
@@ -77,7 +77,7 @@ def run(env: str = "sokoban", seed: int = 0, alpha: float = DEFAULT_ALPHA):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), constrained_layout=True)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2))
     colors = {"split-absres": BLUE, "split-CQR": AQUA, "Mondrian-CQR": VIOLET}
 
     ax = axes[0]
@@ -108,10 +108,12 @@ def run(env: str = "sokoban", seed: int = 0, alpha: float = DEFAULT_ALPHA):
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=9, loc="lower right")
 
-    fig.suptitle(figure_title(
+    title = figure_title(
         f"Gap vs agent self-report — {env}",
         f"Test coverage split by rollout; α={alpha}",
-    ))
+    )
+    top = apply_figure_suptitle(fig, title)
+    fig.tight_layout(rect=(0, 0, 1, top))
     fig.savefig(f"figures/gap_{env}.png", dpi=200)
     print(table.to_string(index=False))
     print(f"\nwrote figures/gap_{env}.png, tables/gap_{env}.csv")

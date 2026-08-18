@@ -39,6 +39,7 @@ from .metrics import (
 )
 from .plotting import (
     UNBOUNDED_NOTE,
+    apply_figure_title,
     figure_title,
     group_bar_width,
     mark_unbounded,
@@ -201,7 +202,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     )
     if any_unbounded:
         title += f"\n{UNBOUNDED_NOTE}"
-    ax.set_title(title, fontsize=11)
+    apply_figure_title(ax, title, fontsize=11)
     ax.grid(axis="y", alpha=0.25)
     ax.set_axisbelow(True)
     # ncol capped so the legend wraps instead of being clipped at the canvas edge.

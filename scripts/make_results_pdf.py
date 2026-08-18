@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.image import imread
 
+from budget_guard.plotting import TITLE_GAP_LINES, TITLE_LINE_FRAC
+
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_OUT = os.path.join(
     os.path.dirname(HERE), "budget-guard-supporting-documents", "budget-guard-results.pdf"
@@ -59,11 +61,21 @@ def main(out_path: str = DEFAULT_OUT) -> None:
             fig_w, fig_h = 11.0, 11.0 * h / w
             if fig_h > 8.2:
                 fig_h, fig_w = 8.2, 8.2 * w / h
-            fig, ax = plt.subplots(figsize=(fig_w, fig_h + 0.4))
+            title_lines = 1
+            header_frac = TITLE_LINE_FRAC * (title_lines + TITLE_GAP_LINES)
+            fig = plt.figure(figsize=(fig_w, fig_h * (1.0 + header_frac) + 0.25))
+            gs = fig.add_gridspec(
+                2, 1,
+                height_ratios=[header_frac, 1.0],
+                hspace=TITLE_LINE_FRAC * TITLE_GAP_LINES * 3.5,
+            )
+            ax_title = fig.add_subplot(gs[0])
+            ax_title.axis("off")
+            ax_title.text(0.5, 0.5, title, ha="center", va="center", fontsize=11,
+                          transform=ax_title.transAxes)
+            ax = fig.add_subplot(gs[1])
             ax.imshow(img)
             ax.axis("off")
-            fig.suptitle(title, fontsize=11, y=0.98)
-            fig.tight_layout(rect=(0, 0, 1, 0.96))
             pdf.savefig(fig, dpi=150)
             plt.close(fig)
     print(f"wrote {out_path} ({len(PAGES)} pages)")

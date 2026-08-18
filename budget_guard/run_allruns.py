@@ -22,7 +22,7 @@ from .conformal import DEFAULT_ALPHA, cqr_split, dtaci, windowed_cqr
 from .extract import flatten_to_samples, load_rollouts, samples_to_dataframe
 from .features import build_xy
 from .metrics import marginal_coverage
-from .plotting import figure_title
+from .plotting import apply_figure_title, figure_title
 from .split import group_split
 
 _DATA = os.path.join(os.path.dirname(__file__), "..", "data", "bagen_hf")
@@ -166,7 +166,7 @@ def main(seed: int = 0, alpha: float = DEFAULT_ALPHA):
     ax.set_yticks(ys, labels, fontsize=8)
     ax.set_xlim(0, 1.05)
     ax.set_xlabel("marginal coverage (test, seed 0)")
-    ax.set_title(figure_title(
+    apply_figure_title(ax, figure_title(
         f"Guard coverage across all {len(table)} runs vs agent self-report",
         "Single split seed (breadth table, not variance)",
     ))

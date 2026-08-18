@@ -39,7 +39,7 @@ from .multiresource import (
     build_features,
     load_warehouse,
 )
-from .plotting import bar_value_labels, nominal_line
+from .plotting import apply_figure_suptitle, bar_value_labels, nominal_line
 from .split import group_split
 
 _DATA = os.path.join(os.path.dirname(__file__), "..", "data", "bagen_hf", "estimation")
@@ -320,7 +320,7 @@ def main(
     xs = np.arange(len(models))
     width = 0.2
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 4.8), sharey=True, constrained_layout=True)
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.8), sharey=True)
     for ax, metric, lo_col, hi_col, subtitle in [
         (axes[0], "coverage", "ci_lo", "ci_hi", "all target rollouts"),
         (axes[1], "late_coverage", "late_ci_lo", "late_ci_hi", "late half (after adapting)"),
@@ -375,10 +375,12 @@ def main(
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, frameon=False, fontsize=8, ncol=4,
                loc="upper center", bbox_to_anchor=(0.5, -0.02))
-    fig.suptitle(
+    title = (
         "Warehouse model-swap: rollout-safe joint adaptation\n"
         f"Calibrated on claude-opus-4.7 ({len(seeds)} seeds, rollout-cluster 90% CI; window={window})"
     )
+    top = apply_figure_suptitle(fig, title)
+    fig.tight_layout(rect=(0, 0, 1, top))
     fig.savefig("figures/transfer_warehouse.png", dpi=200, bbox_inches="tight")
 
     joint = table[table["resource"] == "ALL (joint)"]

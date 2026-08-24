@@ -118,7 +118,8 @@ budget_guard/    # the library and the experiment drivers
 scripts/         # data fetch, figure generators, number checkers, doctor
 tables/          # generated results (committed, so reported numbers are diffable)
 docs/            # results summary
-paper/           # related-work note
+paper/           # all paper artifacts: verified submission, drafts, audit log,
+                 # claims-evidence registry (see paper/README.md before editing)
 ```
 
 Generated figures and the BAGEN data are gitignored by design — regenerate them with

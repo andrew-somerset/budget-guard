@@ -882,8 +882,7 @@ tables, which one command regenerates and two checkers verify.
 \begin{table}[t]
   \caption{Breadth across all 19 token-budget runs: windowed-CQR clears 0.85 on 18 of
   them and 0.90 on 11, while the agents' own intervals clear neither anywhere. Marginal
-  coverage against nominal 0.90 on a single rollout-level split (seed 0); the value
-  closest to nominal in each run is bold. Four decimals are shown on the three guard
+  coverage against nominal 0.90 on a single rollout-level split (seed 0). Four decimals are shown on the three guard
   columns so the two counts above are directly checkable; at three decimals
   SWE-bench/Gemini DtACI rounds to 0.850 and appears to clear 0.85 when it does not.
   ``--'' marks a run whose records carry no agent interval. $^{\dagger}$Warehouse is
@@ -896,27 +895,27 @@ tables, which one command regenerates and two checkers verify.
     \toprule
     Environment & Model & Rollouts & Prefixes & Agent & split-CQR & windowed-CQR & DtACI \\
     \midrule
-    Sokoban & Claude Opus 4.7 & 123 & 355 & 0.513 & 0.8667 & \textbf{0.9000} & \textbf{0.9000} \\
-     & Claude Opus 4.6 & 116 & 410 & 0.446 & 0.8077 & 0.8750 & \textbf{0.8846} \\
-     & Claude Sonnet 4.6 & 126 & 400 & 0.524 & 0.9623 & \textbf{0.9151} & 0.9528 \\
-     & GPT-5.2-instant & 128 & 661 & 0.481 & 0.8176 & \textbf{0.8986} & 0.8716 \\
-     & GPT-5.2-Codex & 128 & 592 & -- & 0.9933 & 0.9600 & \textbf{0.9467} \\
-     & Gemini 3.1 Pro & 126 & 389 & 0.125 & 0.9425 & \textbf{0.9310} & \textbf{0.9310} \\
-     & Qwen3-235B & 126 & 1{,}038 & 0.090 & 0.9268 & \textbf{0.9024} & 0.8862 \\
+    Sokoban & Claude Opus 4.6 & 116 & 410 & 0.446 & 0.8077 & 0.8750 & 0.8846 \\
+     & Claude Opus 4.7 & 123 & 355 & 0.513 & 0.8667 & 0.9000 & 0.9000 \\
+     & Claude Sonnet 4.6 & 126 & 400 & 0.524 & 0.9623 & 0.9151 & 0.9528 \\
+     & Gemini 3.1 Pro & 126 & 389 & 0.125 & 0.9425 & 0.9310 & 0.9310 \\
+     & GPT-5.2-instant & 128 & 661 & 0.481 & 0.8176 & 0.8986 & 0.8716 \\
+     & GPT-5.2-Codex & 128 & 592 & -- & 0.9933 & 0.9600 & 0.9467 \\
+     & Qwen3-235B & 126 & 1{,}038 & 0.090 & 0.9268 & 0.9024 & 0.8862 \\
     \midrule
-    Search-R1 & Claude Opus 4.7 & 66 & 87 & 0.233 & \textbf{1.0000} & \textbf{1.0000} & \textbf{1.0000} \\
-     & Claude Opus 4.6 & 52 & 90 & 0.478 & \textbf{0.9130} & \textbf{0.9130} & \textbf{0.9130} \\
-     & Claude Sonnet 4.6 & 64 & 102 & 0.386 & 1.0000 & \textbf{0.9200} & 1.0000 \\
-     & GPT-5.2-instant & 125 & 324 & 0.198 & 0.8256 & \textbf{0.8605} & 0.8488 \\
-     & GPT-5.2-Codex & 126 & 262 & 0.202 & 0.9649 & 0.9298 & \textbf{0.8772} \\
-     & Gemini 3.1 Pro & 83 & 85 & 0.202 & 0.8182 & \textbf{0.8636} & 0.8182 \\
-     & Qwen3-235B & 124 & 1{,}079 & 0.025 & 0.9259 & 0.9259 & \textbf{0.8765} \\
+    Search-R1 & Claude Opus 4.7 & 66 & 87 & 0.233 & 1.0000 & 1.0000 & 1.0000 \\
+     & Claude Sonnet 4.6 & 64 & 102 & 0.386 & 1.0000 & 0.9200 & 1.0000 \\
+     & Claude Opus 4.6 & 52 & 90 & 0.478 & 0.9130 & 0.9130 & 0.9130 \\
+     & GPT-5.2-instant & 125 & 324 & 0.198 & 0.8256 & 0.8605 & 0.8488 \\
+     & GPT-5.2-Codex & 126 & 262 & 0.202 & 0.9649 & 0.9298 & 0.8772 \\
+     & Gemini 3.1 Pro & 83 & 85 & 0.202 & 0.8182 & 0.8636 & 0.8182 \\
+     & Qwen3-235B & 124 & 1{,}079 & 0.025 & 0.9259 & 0.9259 & 0.8765 \\
     \midrule
-    SWE-bench & Claude Opus 4.7 & 64 & 712 & 0.354 & 0.9926 & 0.9185 & \textbf{0.9037} \\
-     & Claude Sonnet 4.6 & 64 & 1{,}258 & 0.251 & 0.9101 & 0.8705 & \textbf{0.8957} \\
-     & GPT-5.2-instant & 64 & 1{,}313 & 0.385 & \textbf{0.8840} & 0.8589 & 0.8370 \\
-     & Gemini 3.1 Pro & 64 & 2{,}327 & 0.254 & 0.8497 & \textbf{0.8899} & 0.8497 \\
-     & Qwen3-235B & 60 & 3{,}715 & 0.034 & 1.0000 & 0.7727 & \textbf{0.8271} \\
+    SWE-bench & Claude Opus 4.7 & 64 & 712 & 0.354 & 0.9926 & 0.9185 & 0.9037 \\
+     & Claude Sonnet 4.6 & 64 & 1{,}258 & 0.251 & 0.9101 & 0.8705 & 0.8957 \\
+     & Gemini 3.1 Pro & 64 & 2{,}327 & 0.254 & 0.8497 & 0.8899 & 0.8497 \\
+     & GPT-5.2-instant & 64 & 1{,}313 & 0.385 & 0.8840 & 0.8589 & 0.8370 \\
+     & Qwen3-235B & 60 & 3{,}715 & 0.034 & 1.0000 & 0.7727 & 0.8271 \\
     \midrule
     Warehouse & Opus 4.7 $+$ 4 swap targets & 64 ea. & 1{,}280 ea. & 0.424$^{\dagger}$ & -- & -- & -- \\
     \bottomrule
@@ -925,8 +924,7 @@ tables, which one command regenerates and two checkers verify.
 
 \begin{table}[t]
   \caption{Marginal coverage hides a first-turn deficit on Sokoban, and Mondrian
-  calibration is what removes it. Coverage by turn-depth bucket, nominal 0.90, mean
-  over five seeds; the value closer to nominal in each column is bold. Search-R1
+  calibration is what removes it. Coverage by turn-depth bucket, nominal 0.90, mean over five seeds. Search-R1
   rollouts are short enough that no $k{\geq}3$ bucket exists.}
   \label{tab:b2}
   \centering
@@ -935,22 +933,22 @@ tables, which one command regenerates and two checkers verify.
     \toprule
     Environment & Method & Marginal & $k{=}1$ & $k{=}2$ & $k{\geq}3$ \\
     \midrule
-    Sokoban & split-CQR & \textbf{0.92} & 0.86 & \textbf{0.93} & 0.96 \\
-     & Mondrian-CQR & 0.94 & \textbf{0.93} & 0.96 & \textbf{0.94} \\
+    Sokoban & split-CQR & 0.92 & 0.86 & 0.93 & 0.96 \\
+     & Mondrian-CQR & 0.94 & 0.93 & 0.96 & 0.94 \\
     \midrule
-    Search-R1 & split-CQR & \textbf{0.90} & \textbf{0.91} & \textbf{0.89} & -- \\
-     & Mondrian-CQR & 0.89 & \textbf{0.89} & \textbf{0.89} & -- \\
+    Search-R1 & split-CQR & 0.90 & 0.91 & 0.89 & -- \\
+     & Mondrian-CQR & 0.89 & 0.89 & 0.89 & -- \\
     \midrule
-    SWE-bench & split-CQR & \textbf{0.96} & \textbf{0.99} & \textbf{0.99} & \textbf{0.95} \\
-     & Mondrian-CQR & 0.97 & \textbf{0.99} & \textbf{0.99} & 0.96 \\
+    SWE-bench & split-CQR & 0.96 & 0.99 & 0.99 & 0.95 \\
+     & Mondrian-CQR & 0.97 & 0.99 & 0.99 & 0.96 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \begin{table}[t]
   \caption{The feasibility gate trades retained volume for coverage on what it keeps:
-  abstaining on predicted-doomed prefixes holds 0.92--0.95 coverage on capacity and
-  cost, where marginal calibration on capacity reaches only 0.89. Warehouse, mean over
+  abstaining on predicted-doomed prefixes holds 0.92--0.95 coverage on capacity,
+  where marginal calibration reaches only 0.89. Warehouse, mean over
   five seeds. ``Kept'' is the fraction of prefixes the gate admits, ``caught'' the
   fraction of doomed prefixes it correctly abstains on, ``false abort'' the fraction of
   feasible prefixes it wrongly rejects, and ``coverage'' the interval coverage among
@@ -991,9 +989,7 @@ tables, which one command regenerates and two checkers verify.
   every informative repair trades validity for sharpness. One-sided upper-bound
   coverage on Warehouse at nominal 0.90, split by whether the resource was the binding
   constraint. $+\infty$ is always valid and always vacuous; ``drop'' is the naive
-  comparison. Kaplan--Meier is a diagnostic, not a calibration option. Bold marks the
-  highest censored-binding coverage among the treatments that compete on it, excluding
-  the vacuous $+\infty$ and the diagnostic. Coverage for capacity and cost is measured
+  comparison. Kaplan--Meier is a diagnostic, not a calibration option. Coverage for capacity and cost is measured
   against an interpolated label (12--27\% median relative error), not ground truth.}
   \label{tab:b4}
   \centering
@@ -1004,23 +1000,23 @@ tables, which one command regenerates and two checkers verify.
     \cmidrule(lr){4-5}
      & & ($\uparrow$0.90) & binding & non-binding & fraction \\
     \midrule
-    time (weeks) & drop (naive) & 1.00 & \textbf{1.00} & 1.00 & 0.30 \\
+    time (weeks) & drop (naive) & 1.00 & 1.00 & 1.00 & 0.30 \\
      & $+\infty$ & 1.00 & 1.00 & 1.00 & 0.30 \\
-     & substituted bound & 1.00 & \textbf{1.00} & 1.00 & 0.30 \\
+     & substituted bound & 1.00 & 1.00 & 1.00 & 0.30 \\
      & IPCW & 0.96 & 0.96 & 0.96 & 0.30 \\
      & per-resource bound & 0.90 & 0.90 & 0.90 & 0.30 \\
      & Kaplan--Meier (diagnostic) & 1.00 & 1.00 & 1.00 & 0.30 \\
     \midrule
     capacity (item-weeks) & drop (naive) & 0.94 & 0.77 & 0.98 & 0.34 \\
      & $+\infty$ & 1.00 & 1.00 & 1.00 & 0.34 \\
-     & substituted bound & 0.99 & \textbf{0.98} & 1.00 & 0.34 \\
+     & substituted bound & 0.99 & 0.98 & 1.00 & 0.34 \\
      & IPCW & 0.93 & 0.75 & 0.98 & 0.34 \\
      & per-resource bound & 0.91 & 0.74 & 0.98 & 0.34 \\
      & Kaplan--Meier (diagnostic) & 0.94 & 0.78 & 0.99 & 0.34 \\
     \midrule
     cost (USD) & drop (naive) & 0.88 & 0.50 & 0.97 & 0.42 \\
      & $+\infty$ & 1.00 & 1.00 & 1.00 & 0.42 \\
-     & substituted bound & 1.00 & \textbf{0.99} & 1.00 & 0.42 \\
+     & substituted bound & 1.00 & 0.99 & 1.00 & 0.42 \\
      & IPCW & 0.88 & 0.50 & 0.96 & 0.42 \\
      & per-resource bound & 0.86 & 0.46 & 0.94 & 0.42 \\
      & Kaplan--Meier (diagnostic) & 0.92 & 0.58 & 0.98 & 0.42 \\
@@ -1183,8 +1179,7 @@ in Table~\ref{tab:abort}.
   the agent's own intervals miss by 0.39--0.67; windowed-CQR gives the narrowest
   bounded intervals on Sokoban and the second-narrowest on SWE-bench, while
   constant-quantile is sharpest on Search-R1. Claude Opus 4.7, nominal 0.90, mean
-  $\pm$ standard deviation over five rollout-level split seeds; per environment, bold
-  marks the coverage closest to nominal and the narrowest width among bounded methods.
+  $\pm$ standard deviation over five rollout-level split seeds.
   Normalised width is interval width divided by the central 80\% range of the labels
   (lower is sharper). ``Unb.'' is the percentage of predictions with an infinite upper
   endpoint; width is shown as ``--'' where at least one seed produced a majority of
@@ -1198,33 +1193,33 @@ in Table~\ref{tab:abort}.
     \midrule
     Sokoban & agent self-report & 0.51 & -- & -- & -- \\
      & constant-quantile & 0.88 $\pm$ 0.05 & 1.10 & 0 & 87 \\
-     & split-absres & \textbf{0.89 $\pm$ 0.03} & 1.12 & 0 & 87 \\
+     & split-absres & 0.89 $\pm$ 0.03 & 1.12 & 0 & 87 \\
      & split-CQR & 0.92 $\pm$ 0.03 & 0.88 & 0 & 87 \\
      & conformalized-agent & 0.93 $\pm$ 0.05 & 1.44 & 0 & 87 \\
      & guard+self-est & 0.91 $\pm$ 0.04 & 0.91 & 0 & 87 \\
      & ACI-CQR & 0.92 $\pm$ 0.02 & 0.88 & 2 & 87 \\
-     & windowed-CQR & 0.92 $\pm$ 0.02 & \textbf{0.86} & 0 & 87 \\
+     & windowed-CQR & 0.92 $\pm$ 0.02 & 0.86 & 0 & 87 \\
      & DtACI & 0.92 $\pm$ 0.02 & 0.88 & 0 & 87 \\
     \midrule
     Search-R1 & agent self-report & 0.23 & -- & -- & -- \\
-     & constant-quantile & 0.77 $\pm$ 0.17 & \textbf{0.90} & 0 & 24 \\
+     & constant-quantile & 0.77 $\pm$ 0.17 & 0.90 & 0 & 24 \\
      & split-absres & 0.94 $\pm$ 0.06 & 1.60 & 0 & 24 \\
      & split-CQR & 0.90 $\pm$ 0.15 & 1.14 & 0 & 24 \\
-     & conformalized-agent & \textbf{0.90 $\pm$ 0.10} & 1.96 & 0 & 24 \\
+     & conformalized-agent & 0.90 $\pm$ 0.10 & 1.96 & 0 & 24 \\
      & guard+self-est & 0.85 $\pm$ 0.17 & 1.07 & 0 & 24 \\
      & ACI-CQR & 0.90 $\pm$ 0.15 & 1.14 & 0 & 24 \\
      & windowed-CQR & 0.92 $\pm$ 0.10 & 1.10 & 0 & 24 \\
      & DtACI & 0.94 $\pm$ 0.06 & -- & 16 & 24 \\
     \midrule
     SWE-bench & agent self-report & 0.35 & -- & -- & -- \\
-     & constant-quantile & \textbf{0.92 $\pm$ 0.03} & 2.87 & 0 & 161 \\
+     & constant-quantile & 0.92 $\pm$ 0.03 & 2.87 & 0 & 161 \\
      & split-absres & 0.95 $\pm$ 0.09 & 2.56 & 0 & 161 \\
      & split-CQR & 0.96 $\pm$ 0.10 & 2.11 & 0 & 161 \\
      & conformalized-agent & 0.97 $\pm$ 0.07 & 2.23 & 0 & 161 \\
      & guard+self-est & 0.96 $\pm$ 0.09 & 1.97 & 0 & 161 \\
      & ACI-CQR & 0.94 $\pm$ 0.09 & -- & 14 & 161 \\
      & windowed-CQR & 0.87 $\pm$ 0.08 & 1.29 & 0 & 161 \\
-     & DtACI & 0.87 $\pm$ 0.07 & \textbf{1.22} & 0 & 161 \\
+     & DtACI & 0.87 $\pm$ 0.07 & 1.22 & 0 & 161 \\
     \bottomrule
   \end{tabular}
 \end{table}

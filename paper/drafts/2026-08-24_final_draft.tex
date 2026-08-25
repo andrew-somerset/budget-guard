@@ -192,7 +192,7 @@ finish: a doomed run censors its label rather than delaying it. The guard acts a
 verifier: it need not trust the agent's self-report, because it wraps that self-report
 in a guarantee that holds regardless of its quality (Table~\ref{tab:a1}).
 
-\begin{figure}[t]
+\begin{figure}[!htb]
   \centering
   \includegraphics[width=\linewidth]{fig1_pipeline.pdf}
   \caption{\bg{} wraps an unmodified agent in an external calibration layer. Stages 1--4
@@ -358,7 +358,7 @@ every coverage number.
 \subsection{Within-run interval calibration}
 \label{sec:within}
 
-\begin{figure}[t]
+\begin{figure}[!htb]
   \centering
   \includegraphics[width=\linewidth]{fig2_coverage.pdf}
   \caption{Conformal calibration closes almost all of the gap between agent
@@ -394,7 +394,7 @@ does not help: guard+self-est is within 0.01 of split-CQR on Sokoban (0.91 again
 \subsection{Robustness under deployment shift}
 \label{sec:shift}
 
-\begin{figure}[t]
+\begin{figure}[!htb]
   \centering
   \includegraphics[width=\linewidth]{fig3_transfer.pdf}
   \caption{An environment change collapses frozen calibration and online recalibration
@@ -434,7 +434,7 @@ split-CQR; on SWE-bench the marginal-to-first-turn gap is already small and Mond
 neutral to slightly positive (Table~\ref{tab:b2}), yielding conditional validity rather
 than a uniform improvement.
 
-\begin{table}[t]
+\begin{table}[!htb]
   \caption{Independent margins under-cover the joint event, Bonferroni fixes it in
   distribution, and nothing with a guarantee survives a model swap. Warehouse coverage
   against a nominal 0.90, mean over five rollout-level split seeds; above 0.90,
@@ -473,7 +473,7 @@ empirical methods.
 \subsection{Economic impact}
 \label{sec:econ}
 
-\begin{figure}[t]
+\begin{figure}[!htb]
   \centering
   \includegraphics[width=\linewidth]{fig4_economics.pdf}
   \caption{Warehouse economic impact from the feasibility gate alone, without
@@ -500,7 +500,7 @@ runs. No hard cap improves Cost-of-Pass relative to the unstopped baseline by mo
 a rounding error: discarding passes raises cost per pass, to \$3.19M at the tightest
 cap.
 
-\begin{table}[t]
+\begin{table}[!htb]
   \caption{Abort performance at $\delta{=}0.10$ (mean over five seeds). Warehouse uses
   the classifier-only gate (native USD). Token abort is evaluated on Sokoban and
   SWE-bench only; both also evaluate a classifier+interval variant. Combining intervals

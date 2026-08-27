@@ -37,7 +37,7 @@ from .metrics import (
     pooled_bootstrap_ci,
     rollout_bootstrap_draws,
 )
-from .plotting import UNBOUNDED_NOTE, group_bar_width, mark_unbounded, nominal_line
+from .plotting import UNBOUNDED_NOTE, group_bar_width, mark_unbounded, method_legend, nominal_line
 from .split import group_split
 
 _DATA = os.path.join(os.path.dirname(__file__), "..", "data", "bagen_hf", "estimation")
@@ -83,6 +83,59 @@ def target_runs() -> dict[str, str]:
         model = run_dir.split("-origin-")[1].split("_")[0]
         out[model] = run_dir
     return out
+
+
+
+def plot_transfer_swebench(table: pd.DataFrame, n_seeds: int, alpha: float = DEFAULT_ALPHA,
+                           ax=None, show_title: bool = True, show_legend: bool = True,
+                           out: str = "figures/transfer_swebench.png") -> None:
+    """Draw the model-swap bar chart from the aggregate table (see plot_coverage)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    methods = ["split-CQR (frozen)", "ACI-CQR", "windowed-CQR", "DtACI"]
+    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "windowed-CQR": VIOLET, "DtACI": GREEN}
+    models = list(dict.fromkeys(table["target_model"]))
+    xs = np.arange(len(models))
+
+    width = group_bar_width(len(methods))
+    own_fig = ax is None
+    if own_fig:
+        fig, ax = plt.subplots(figsize=(10, 5.0), constrained_layout=True)
+    any_unbounded = False
+    for i, method in enumerate(methods):
+        sel = [table[(table["target_model"] == m) & (table["method"] == method)].iloc[0] for m in models]
+        vals = [float(s["coverage"]) for s in sel]
+        fracs = [float(s["frac_unbounded"]) for s in sel]
+        yerr = np.clip(np.array([[v - float(s["ci_lo"]) for v, s in zip(vals, sel)],
+                                 [float(s["ci_hi"]) - v for v, s in zip(vals, sel)]]), 0, None)
+        offset = (i - (len(methods) - 1) / 2) * width
+        bars = ax.bar(xs + offset, vals, width=width * 0.86, color=colors[method], label=method,
+                      yerr=yerr, capsize=3, error_kw={"lw": 1, "alpha": 0.7})
+        any_unbounded |= mark_unbounded(ax, bars, fracs, vals)
+        for bar, v, s in zip(bars, vals, sel):
+            ax.text(bar.get_x() + bar.get_width() / 2, float(s["ci_hi"]) + 0.02, f"{v:.2f}",
+                    ha="center", va="bottom", fontsize=7.5)
+    nominal = nominal_line(ax, alpha)
+    ax.set_xticks(xs, [display_name(m) for m in models])
+    ax.set_ylim(0, 1.16)
+    ax.set_ylabel("marginal coverage on target stream")
+    title = ("Model-swap transfer (SWE-bench): guard calibrated on claude-opus-4.7, "
+             f"deployed on other models\n({n_seeds} seeds; band = 90% pooled "
+             "seed×rollout cluster bootstrap)")
+    if any_unbounded:
+        title += f"\n{UNBOUNDED_NOTE}"
+    if show_title:
+        ax.set_title(title, fontsize=10.5)
+    ax.grid(axis="y", alpha=0.25)
+    ax.set_axisbelow(True)
+    if show_legend:
+        method_legend(ax, methods, colors, any_unbounded, nominal, frameon=False, fontsize=9,
+                      ncol=6, loc="upper center", bbox_to_anchor=(0.5, -0.07))
+    if own_fig:
+        fig.savefig(out, dpi=200, bbox_inches="tight")
 
 
 def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA):
@@ -160,46 +213,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     os.makedirs("figures", exist_ok=True)
     table.to_csv("tables/transfer_swebench.csv", index=False)
 
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    methods = ["split-CQR (frozen)", "ACI-CQR", "windowed-CQR", "DtACI"]
-    colors = {"split-CQR (frozen)": AQUA, "ACI-CQR": YELLOW, "windowed-CQR": VIOLET, "DtACI": GREEN}
-    models = list(dict.fromkeys(table["target_model"]))
-    xs = np.arange(len(models))
-
-    width = group_bar_width(len(methods))
-    fig, ax = plt.subplots(figsize=(10, 5.0), constrained_layout=True)
-    any_unbounded = False
-    for i, method in enumerate(methods):
-        sel = [table[(table["target_model"] == m) & (table["method"] == method)].iloc[0] for m in models]
-        vals = [float(s["coverage"]) for s in sel]
-        fracs = [float(s["frac_unbounded"]) for s in sel]
-        yerr = np.clip(np.array([[v - float(s["ci_lo"]) for v, s in zip(vals, sel)],
-                                 [float(s["ci_hi"]) - v for v, s in zip(vals, sel)]]), 0, None)
-        offset = (i - (len(methods) - 1) / 2) * width
-        bars = ax.bar(xs + offset, vals, width=width * 0.86, color=colors[method], label=method,
-                      yerr=yerr, capsize=3, error_kw={"lw": 1, "alpha": 0.7})
-        any_unbounded |= mark_unbounded(ax, bars, fracs, vals)
-        for bar, v, s in zip(bars, vals, sel):
-            ax.text(bar.get_x() + bar.get_width() / 2, float(s["ci_hi"]) + 0.02, f"{v:.2f}",
-                    ha="center", va="bottom", fontsize=7.5)
-    nominal_line(ax, alpha)
-    ax.set_xticks(xs, [display_name(m) for m in models])
-    ax.set_ylim(0, 1.16)
-    ax.set_ylabel("marginal coverage on target stream")
-    title = ("Model-swap transfer (SWE-bench): guard calibrated on claude-opus-4.7, "
-             f"deployed on other models\n({len(seeds)} seeds; band = 90% pooled "
-             "seed×rollout cluster bootstrap)")
-    if any_unbounded:
-        title += f"\n{UNBOUNDED_NOTE}"
-    ax.set_title(title, fontsize=10.5)
-    ax.grid(axis="y", alpha=0.25)
-    ax.set_axisbelow(True)
-    ax.legend(frameon=False, fontsize=9, ncol=5, loc="upper center", bbox_to_anchor=(0.5, -0.07))
-    fig.savefig("figures/transfer_swebench.png", dpi=200, bbox_inches="tight")
+    plot_transfer_swebench(table, len(seeds), alpha)
 
     print(table.to_string(index=False))
     print("\nwrote figures/transfer_swebench.png, tables/transfer_swebench.csv, "

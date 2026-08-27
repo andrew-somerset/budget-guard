@@ -42,8 +42,8 @@ def group_bar_width(n_series: int, group_span: float = 0.82) -> float:
 
 def nominal_line(ax, alpha: float, color: str = "#4A5361"):
     """Draw the 1-alpha reference line, labelled via the legend (never on the canvas)."""
-    ax.axhline(1 - alpha, color=color, lw=1.2, ls="--",
-               label=f"nominal {1 - alpha:.2f}")
+    return ax.axhline(1 - alpha, color=color, lw=1.2, ls="--",
+                      label=f"nominal {1 - alpha:.2f}")
 
 
 def mark_unbounded(ax, bars, fracs, values, fontsize: float = 6.5) -> bool:
@@ -82,3 +82,23 @@ def mark_unbounded(ax, bars, fracs, values, fontsize: float = 6.5) -> bool:
 
 UNBOUNDED_NOTE = ("hatched ∞:NN% = coverage reached with unbounded intervals on NN% of the "
                   "stream (valid but uninformative)")
+UNBOUNDED_LEGEND = "hatched, ∞:NN% = unbounded intervals on NN% of the stream"
+
+
+def method_legend(ax, methods, colors, any_unbounded: bool, nominal=None, **legend_kw):
+    """Legend with SOLID method swatches plus one standalone hatched entry.
+
+    matplotlib draws a bar series' legend swatch from that series' first bar. Hatching
+    is a per-bar flag (see ``mark_unbounded``), so a method whose first bar happened
+    to be hatched got a hatched swatch and one whose first bar was solid got a solid
+    swatch, which told readers hatching was a method property and made a legitimately
+    hatched bar elsewhere look like a rendering error. Explicit handles fix both.
+    """
+    from matplotlib.patches import Patch
+
+    handles = [nominal] if nominal is not None else []
+    handles += [Patch(facecolor=colors[m], label=m) for m in methods]
+    if any_unbounded:
+        handles.append(Patch(facecolor="#FFFFFF", edgecolor="#1C2128", linewidth=0.6,
+                             hatch=UNBOUNDED_HATCH, label=UNBOUNDED_LEGEND))
+    return ax.legend(handles=handles, **legend_kw)

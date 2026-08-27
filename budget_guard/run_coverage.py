@@ -41,6 +41,7 @@ from .plotting import (
     UNBOUNDED_NOTE,
     group_bar_width,
     mark_unbounded,
+    method_legend,
     nominal_line,
 )
 from .split import group_split
@@ -121,6 +122,66 @@ def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]
     return rows
 
 
+
+def plot_coverage(table: pd.DataFrame, n_seeds: int, alpha: float = DEFAULT_ALPHA,
+                  ax=None, show_title: bool = True, out: str = "figures/coverage_main.png") -> None:
+    """Draw the coverage bar chart from the aggregate table.
+
+    With ``ax`` given, draws into that axes and does not save (the caller owns the
+    figure); ``show_title=False`` omits the diagnostic title for paper use.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    envs = list(ENVS)
+    methods = list(METHOD_COLORS)
+    # Width MUST scale with the method count: a fixed width silently overflows into
+    # the neighbouring env group once methods are added (was 9 x 0.16 = 1.44 > 1.0).
+    width = group_bar_width(len(methods))
+    own_fig = ax is None
+    if own_fig:
+        fig, ax = plt.subplots(figsize=(13.5, 5.2), constrained_layout=True)
+    xs = np.arange(len(envs))
+    any_unbounded = False
+    for i, method in enumerate(methods):
+        vals, errs, fracs = [], [], []
+        for env in envs:
+            sel = table[(table["env"] == env) & (table["method"] == method)]
+            vals.append(sel["coverage"].item() if len(sel) else np.nan)
+            err = sel["coverage_std"].item() if len(sel) else np.nan
+            errs.append(err if np.isfinite(err) else 0.0)
+            frac = sel["frac_unbounded"].item() if len(sel) else np.nan
+            fracs.append(frac)
+        offset = (i - (len(methods) - 1) / 2) * width
+        bars = ax.bar(xs + offset, vals, width=width * 0.88,
+                      color=METHOD_COLORS[method], label=method,
+                      yerr=errs, error_kw={"ecolor": "#4A5361", "lw": 1, "capsize": 2})
+        any_unbounded |= mark_unbounded(ax, bars, fracs, vals)
+        for bar, v, e in zip(bars, vals, errs):
+            if np.isfinite(v):
+                ax.text(bar.get_x() + bar.get_width() / 2, v + e + 0.018, f"{v:.2f}",
+                        ha="center", va="bottom", fontsize=6.5, rotation=90)
+    nominal = nominal_line(ax, alpha)
+    ax.set_xticks(xs, envs)
+    ax.set_ylim(0, 1.20)
+    ax.set_ylabel("marginal coverage")
+    title = ("Remaining-budget interval coverage: BAGEN agent vs conformal guard\n"
+             f"alpha={alpha}, claude-opus-4.7, mean±std over {n_seeds} split seeds")
+    if any_unbounded:
+        title += f"\n{UNBOUNDED_NOTE}"
+    if show_title:
+        ax.set_title(title, fontsize=11)
+    ax.grid(axis="y", alpha=0.25)
+    ax.set_axisbelow(True)
+    # ncol capped so the legend wraps instead of being clipped at the canvas edge.
+    method_legend(ax, methods, METHOD_COLORS, any_unbounded, nominal, frameon=False,
+                  fontsize=8.5, ncol=4, loc="upper center", bbox_to_anchor=(0.5, -0.06))
+    if own_fig:
+        fig.savefig(out, dpi=200, bbox_inches="tight")
+
+
 def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA):
     rows = []
     for seed in seeds:
@@ -159,52 +220,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
     per_seed.drop(columns=["_draws"]).to_csv("tables/coverage_per_seed.csv", index=False)
     table.to_csv("tables/coverage.csv", index=False)
 
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    envs = list(ENVS)
-    methods = list(METHOD_COLORS)
-    # Width MUST scale with the method count: a fixed width silently overflows into
-    # the neighbouring env group once methods are added (was 9 x 0.16 = 1.44 > 1.0).
-    width = group_bar_width(len(methods))
-    fig, ax = plt.subplots(figsize=(13.5, 5.2), constrained_layout=True)
-    xs = np.arange(len(envs))
-    any_unbounded = False
-    for i, method in enumerate(methods):
-        vals, errs, fracs = [], [], []
-        for env in envs:
-            sel = table[(table["env"] == env) & (table["method"] == method)]
-            vals.append(sel["coverage"].item() if len(sel) else np.nan)
-            err = sel["coverage_std"].item() if len(sel) else np.nan
-            errs.append(err if np.isfinite(err) else 0.0)
-            frac = sel["frac_unbounded"].item() if len(sel) else np.nan
-            fracs.append(frac)
-        offset = (i - (len(methods) - 1) / 2) * width
-        bars = ax.bar(xs + offset, vals, width=width * 0.88,
-                      color=METHOD_COLORS[method], label=method,
-                      yerr=errs, error_kw={"ecolor": "#4A5361", "lw": 1, "capsize": 2})
-        any_unbounded |= mark_unbounded(ax, bars, fracs, vals)
-        for bar, v, e in zip(bars, vals, errs):
-            if np.isfinite(v):
-                ax.text(bar.get_x() + bar.get_width() / 2, v + e + 0.018, f"{v:.2f}",
-                        ha="center", va="bottom", fontsize=6.5, rotation=90)
-    nominal_line(ax, alpha)
-    ax.set_xticks(xs, envs)
-    ax.set_ylim(0, 1.20)
-    ax.set_ylabel("marginal coverage")
-    title = ("Remaining-budget interval coverage: BAGEN agent vs conformal guard\n"
-             f"alpha={alpha}, claude-opus-4.7, mean±std over {len(seeds)} split seeds")
-    if any_unbounded:
-        title += f"\n{UNBOUNDED_NOTE}"
-    ax.set_title(title, fontsize=11)
-    ax.grid(axis="y", alpha=0.25)
-    ax.set_axisbelow(True)
-    # ncol capped so the legend wraps instead of being clipped at the canvas edge.
-    ax.legend(frameon=False, fontsize=8.5, ncol=5, loc="upper center",
-              bbox_to_anchor=(0.5, -0.06))
-    fig.savefig("figures/coverage_main.png", dpi=200, bbox_inches="tight")
+    plot_coverage(table, len(seeds), alpha)
 
     print(table.to_string(index=False))
     print("\nwrote figures/coverage_main.png, tables/coverage.csv")

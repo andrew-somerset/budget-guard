@@ -277,3 +277,19 @@ ends the main text and the references open page 10. Compiled: 24 pages, zero
 overfull boxes, no unresolved references, no em dashes. Bundle
 `drafts/BudgetGuard_Overleaf_REWRITE_2026-08-27_<time>.zip`. Still a proposal pending
 team sign-off.
+
+## 11 — 2026-08-27: v5, the abstract made readable without dropping anything
+
+v4's abstract reported everything but read as a ledger (351 words, a number every
+eleven words, one 47-word sentence). v5 restructures it into short declaratives with
+one arc (problem, idea, two instruments, what holds in distribution, what breaks
+under shift, what the gate does and does not do): 323 words, sixteen sentences,
+every result of v4 still present (checked in the compiled text: 0.71 swap, 11 of 19
+at 0.90, 0.51/0.10 and 0.71/0.80, Opus 4.7 scope, 5.8% false aborts, 7.1%/3.1%, the
+intervals-in-the-rule negative, counterfactual replay). The introduction's findings
+list drops its numbers, which live in the abstract and Section 5, and reads as plain
+language. The lines freed on page 9 carry three limitation sentences back into §6
+(Search-R1 sample size, no comparison against BAGEN's unreleased fine-tuned
+estimator, the untested live deployment). Compiled: 24 pages, zero overfull boxes,
+no unresolved references, no em dashes, main text ends on page 9, references open
+page 10. Bundle `drafts/BudgetGuard_Overleaf_REWRITE_2026-08-27_1923.zip`. Still a proposal pending team sign-off.

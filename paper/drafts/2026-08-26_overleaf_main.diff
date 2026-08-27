@@ -1,0 +1,55 @@
+--- paper/drafts/2026-08-26_overleaf_main_base.tex	2026-08-26 19:21:37
++++ paper/drafts/2026-08-26_overleaf_main.tex	2026-08-26 20:06:32
+@@ -221,6 +221,26 @@
+ 
+ Table~\ref{tab:abort} reports abort performance across environments and rules. At the same $\delta{=}0.10$, Sokoban and SWE-bench save only 7.1\% and 3.1\% of doomed token spend under the classifier-only rule, with false-abort rates of 5.8\% and 0\%, respectively. Combining the interval trigger makes the policy more conservative at fixed $\delta$ (Sokoban savings fall to 1.9\%; SWE-bench to 0\%) and does not recover Warehouse-scale savings. The 86.3\% figure is therefore a Warehouse result for the feasibility gate alone, not a general Budget Guard savings rate, and it does not use conformal remaining-budget intervals. Two further cautions: the dollars are simulated Warehouse dollars, not comparable to BAGEN's 28--64\% token savings; and the observed 0\% false-abort rate should be read as consistent with the $\delta{=}0.10$ bound on a small test set, not as proof that the true rate is zero.
+ 
++\paragraph{A worked example.}
++Table~\ref{tab:case_study} follows the first held-out Sokoban rollout in the seed-0 test stream turn by turn; the rollout is fixed by that rule, not chosen by hand. The agent's self-reported intervals cover only the first prefix: from turn~2 they sit entirely above the truth, and the last one reserves 400 to 900 tokens for a run that needed 267. The guard's split-CQR intervals are wider but contain the truth at every turn, spend so far plus their upper bound stays under the budget throughout, and the $\delta{=}0.10$ gate of \S\ref{sec:econ} scores the run 0.95 to 0.99 against an abort threshold of 0.02, so a deployer could have certified it from turn~1; it succeeded inside budget. The example is representative: over all 30 test rollouts of this split, split-CQR covers more prefixes than the self-report on 22, ties on 6 and trails on 2 (windowed-CQR: 24, 5 and 1). Figure~\ref{fig:case_study} (Appendix~\ref{app:breadth}) plots the rollout.
++
++\begin{table}[H]
++\centering
++\caption{The first held-out Sokoban rollout in the seed-0 test stream, turn by turn (Claude~Opus~4.7, 2{,}500-token budget). $\surd$: the interval contains the true remaining spend; $\times$: it misses. ``Spent + upper'' is spend so far plus the guard's upper bound; ``Gate'' is the feasibility score and decision at $\delta{=}0.10$ (abort below 0.02).}
++\label{tab:case_study}
++\footnotesize
++\setlength{\tabcolsep}{4pt}
++\begin{tabular}{@{}rrrlllr@{}}
++\toprule
++Turn & Spent & True rem. & Agent self-report & Guard interval (split-CQR) & Spent + upper & Gate \\
++\midrule
++1 & 557 & 1{,}090 & [1{,}000, 1{,}800] $\surd$ & [460, 1{,}582] $\surd$ & 2{,}139 $\leq$ 2{,}500 & 0.99 continue \\
++2 & 1{,}076 & 571 & [600, 1{,}200] $\times$ & [210, 1{,}102] $\surd$ & 2{,}178 $\leq$ 2{,}500 & 0.95 continue \\
++3 & 1{,}380 & 267 & [400, 900] $\times$ & [162, 902] $\surd$ & 2{,}282 $\leq$ 2{,}500 & 0.99 continue \\
++\bottomrule
++\end{tabular}
++\end{table}
++
+ \subsection{Censored calibration}
+ \label{sec:censored}
+ 
+@@ -232,7 +252,7 @@
+ 
+ Our joint results rest entirely on Warehouse. Bonferroni calibration reaches 0.95 joint coverage there, but a single multi-resource environment cannot support a claim that the approach generalises, and \S\ref{sec:joint} shows that guarantee is not robust to a model swap. The 86.3\% doomed-spend figure likewise does not transfer to token environments at $\delta{=}0.10$ (Table~\ref{tab:abort}).
+ 
+-Our breadth figures are based on a single-split: on seed~0, windowed-CQR reaches at least 0.85 coverage in 18 of 19 runs. Search-R1 leaves about 24 test prefixes per seed, which is why its standard deviations reach 0.10--0.17. Coverage alone does not distinguish a useful interval from a trivially wide one; we therefore report width and unbounded fraction throughout. Censored capacity/cost results are measured against an interpolated label. Finally, savings and Cost-of-Pass are counterfactual replays: they assume adding the guard would not change agent behaviour and that the sample is representative.
++Our breadth figures are based on a single-split: on seed~0, windowed-CQR reaches at least 0.85 coverage in 18 of 19 runs. Search-R1 leaves about 24 test prefixes per seed, which is why its standard deviations reach 0.10--0.17. Coverage alone does not distinguish a useful interval from a trivially wide one; we therefore report width and unbounded fraction throughout. Censored capacity/cost results are measured against an interpolated label. Finally, savings and Cost-of-Pass are counterfactual replays: they assume adding the guard would not change agent behaviour and that the sample is representative. The worked example in \S\ref{sec:econ} also shows what the guard does not do: its intervals are roughly twice as wide as the agent's, and the price of a calibrated answer is a less precise one. Where a deployer only needs a yes-or-no on whether the run still fits, that width costs nothing; where a tight point estimate matters, the interval is a bound, not a forecast. On the split behind that example, the gate aborts none of the 16 feasible test runs and recovers 4.9\% of doomed-run spend; Table~\ref{tab:abort} gives the five-seed means.
+ 
+ \paragraph{Broader impact.}
+ The intended effect is to reduce wasted compute, energy, and money on agent runs that cannot succeed; the Warehouse feasibility gate at $\delta{=}0.10$ illustrates that potential in one environment (86.3\% of doomed-run spend avoided in replay, without using remaining-budget intervals). The corresponding risk is that a stopping threshold set too aggressively terminates runs that would have finished; $\delta$ calibration exists to bound that risk at a user-chosen level, and the counterfactual caveat above means a deployer should not treat the reported savings as a guaranteed live return when choosing $\delta$, nor assume token environments will see Warehouse-scale savings.
+@@ -497,8 +517,15 @@
+ \section{Per-run breadth results}
+ \label{app:breadth}
+ 
+-Table~\ref{tab:allruns} lists every model$\times$environment run behind the breadth claims in \S\ref{sec:within}; the ``18 of 19'' and ``11 of 19'' counts can be read straight off the windowed-CQR column. Table~\ref{tab:conditional} gives conditional coverage by turn depth, Table~\ref{tab:gated} the feasibility-gate sweep, and Table~\ref{tab:censored} the censored upper-bound calibrations. Every number is read from the generated result tables, which one command regenerates and two checkers verify.
++Table~\ref{tab:allruns} lists every model$\times$environment run behind the breadth claims in \S\ref{sec:within}; the ``18 of 19'' and ``11 of 19'' counts can be read straight off the windowed-CQR column. Table~\ref{tab:conditional} gives conditional coverage by turn depth, Table~\ref{tab:gated} the feasibility-gate sweep, and Table~\ref{tab:censored} the censored upper-bound calibrations. Every number is read from the generated result tables, which one command regenerates and two checkers verify. Figure~\ref{fig:case_study} plots the worked example of \S\ref{sec:econ}.
+ 
++\begin{figure}[t]
++\centering
++\includegraphics[width=0.72\linewidth]{figures/fig_case_study.png}
++\caption{The Sokoban rollout of Table~\ref{tab:case_study}. Grey bars are the agent's self-reported remaining-token interval at each turn, green bars the guard's split-CQR interval, black dots the true remaining spend, and the dashed red line the budget still available. The self-report drifts above the truth after turn~1; the guard's interval tracks it and stays under the remaining budget throughout, and the gate (scores under each turn) says continue at every step.}
++\label{fig:case_study}
++\end{figure}
++
+ \begin{table}[t]
+ \centering
+ \caption{Breadth across all 19 token-budget runs: windowed-CQR clears 0.85 on 18 of them and 0.90 on 11, while the agents' own intervals clear neither anywhere. Marginal coverage against nominal 0.90 on a single rollout-level split (seed~0). Four decimals are shown on the three guard columns so the two counts above are directly checkable; at three decimals SWE-bench/Gemini DtACI rounds to 0.850 and appears to clear 0.85 when it does not. ``--'' marks a run whose records carry no agent interval. $^{\dagger}$Warehouse is listed for dataset composition only; its 0.424 is joint coverage across three resources (Table~\ref{tab:joint}), not a token-budget marginal.}

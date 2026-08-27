@@ -260,3 +260,20 @@ compiled locally: 24 pages, no unresolved references, zero overfull boxes, no em
 dashes; main text ends on page 9 with the references heading and one entry at its
 foot. Bundle `drafts/BudgetGuard_Overleaf_REWRITE_2026-08-27_0024.zip` (also copied to
 ~/Downloads). Still a proposal pending team sign-off in Slack.
+
+## 10 — 2026-08-27: abstract restored to full reporting (Charlotte: "still cherry picking values in the abstract")
+
+Checked the v3 abstract against the tables as a reviewer would. Five selective
+choices, all real: the joint-calibration model-swap result (0.71) that the verified
+24 Aug abstract carried had been dropped in the rewrite; the breadth count gave only
+the 0.85 threshold (18 of 19) and not the 0.90 one (11 of 19); only the SWE-bench
+shift pair (0.10 to 0.80) was quoted, not Search-R1 (0.51 to 0.71), and 0.80 was not
+marked as below target; the coverage ranges were not scoped to Claude Opus 4.7; and
+"stops no run that would have finished" (Warehouse) sat next to the token-task savings
+without the 5.8% Sokoban false-abort rate. All five restored in
+`drafts/2026-08-27_rewrite_v4_main.tex` (abstract 351 words); two Related Work
+sentences trimmed to pay for the lines; `\newpage` after the conclusion so page 9
+ends the main text and the references open page 10. Compiled: 24 pages, zero
+overfull boxes, no unresolved references, no em dashes. Bundle
+`drafts/BudgetGuard_Overleaf_REWRITE_2026-08-27_<time>.zip`. Still a proposal pending
+team sign-off.

@@ -26,3 +26,6 @@ Review candidate (2026-08-27, sentence-level corrections and flow edits, no numb
 Each edit is one exact-anchor replacement keyed by the IDs in
 `../2026-08-27_rewrite_review.md`; delete an entry to reject that edit. Compile check:
 24 pages, conclusion on page 9 (F4 pays for F1–F3), zero overfull boxes.
+
+v4 (2026-08-27): `2026-08-27_rewrite_v4_main.tex` = v3 plus the abstract restorations in
+audit-log entry 10 and a `\newpage` after the conclusion; diff in `2026-08-27_rewrite_v4.diff`.

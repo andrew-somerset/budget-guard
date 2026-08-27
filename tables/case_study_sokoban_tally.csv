@@ -1,0 +1,3 @@
+method,guard_higher,equal,agent_higher,n_rollouts
+split,22,6,2,30
+win,24,5,1,30

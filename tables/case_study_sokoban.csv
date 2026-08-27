@@ -1,0 +1,4 @@
+turn,tokens_spent,true_remaining,agent_lo,agent_hi,split_lo,split_hi,win_lo,win_hi,gate_score,gate_decision,agent_covers,split_covers,win_covers,spent_plus_split_hi,fits_budget_at_0.90
+1,557,1090,1000,1800,460,1582,460,1582,0.989,continue,True,True,True,2139,True
+2,1076,571,600,1200,210,1102,210,1102,0.948,continue,False,True,True,2178,True
+3,1380,267,400,900,162,902,162,902,0.987,continue,False,True,True,2282,True

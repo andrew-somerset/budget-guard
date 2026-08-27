@@ -101,6 +101,9 @@ repro-all: build outdirs
 		python -m budget_guard.run_final --full && \
 		python scripts/make_pipeline_figure.py && \
 		python scripts/make_costofpass_figure.py && \
+		python scripts/make_case_study.py && \
+		python scripts/make_paper_figures.py && \
+		python scripts/make_allruns_figure.py && \
 		python scripts/run_closed_loop.py && \
 		python scripts/check_headline_numbers.py && \
 		python scripts/check_paper_numbers.py"
@@ -118,6 +121,9 @@ repro-paper: build outdirs
 		python -m budget_guard.run_conditional && \
 		python scripts/make_pipeline_figure.py && \
 		python scripts/make_costofpass_figure.py && \
+		python scripts/make_case_study.py && \
+		python scripts/make_paper_figures.py && \
+		python scripts/make_allruns_figure.py && \
 		python scripts/check_headline_numbers.py && \
 		python scripts/check_paper_numbers.py"
 

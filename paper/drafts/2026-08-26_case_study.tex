@@ -1,0 +1,79 @@
+% Proposed addition, 2026-08-26 meeting item: "case study, Budget Guard vs agent
+% self-reporting, for a Table 1 task" (about half a page). NOT yet in the paper.
+% Every number below is produced by scripts/make_case_study.py and stored in
+% tables/case_study_sokoban.csv, tables/case_study_sokoban_tally.csv and
+% tables/case_study_sokoban_gate.csv (Claude Opus 4.7 Sokoban run, seed-0 test split). Selection rule, fixed in the script before
+% any rollout was inspected: the first rollout in the seed-0 test stream (rollout 7).
+% The 0.51 / 0.92 figures are the verified Figure 2 values.
+%
+% Placement suggestion: end of Section 5.1, before "5.2 Robustness under deployment
+% shift". Requires \usepackage{booktabs} and \usepackage{amssymb} (for \checkmark).
+% \ref{tab:token_abort} must be replaced by the source's actual label for Table 3
+% (token-abort economics); check with grep before pasting.
+
+\paragraph{A worked example.}
+Table~\ref{tab:case_study} follows the first held-out Sokoban rollout in the seed-0
+test stream (Claude Opus 4.7, 2,500-token budget) turn by turn; the rollout is fixed
+by that rule, not chosen by hand. At each prefix the agent reports its own
+remaining-token interval and the guard reports a split-CQR interval computed from
+the same prefix; the true remaining spend is known only in hindsight. The agent's
+intervals are 500 to 800 tokens wide and cover only at the first prefix: from turn 2
+they sit entirely above the truth, and the final self-report reserves 400 to 900
+tokens for a run that needed 267. The guard's intervals are wider but contain the
+truth at every prefix, and they support the decision a deployer actually has to make:
+spend so far plus the guard's upper bound stays under the budget at every turn
+(2,139, 2,178 and 2,282 tokens against 2,500), so the run could be certified to fit
+from its first turn. The feasibility gate, calibrated at $\delta{=}0.10$ on the same
+split, scores the run at 0.99, 0.95 and 0.99 against an abort threshold of 0.02, so
+it says continue at every turn; the run finished inside budget and succeeded.
+Because this is the first rollout of the stream, the online windowed-CQR intervals
+coincide with the offline ones here. The example is representative rather than selected: across all 30
+test rollouts of this split, split-CQR covers a larger fraction of prefixes than the
+self-report on 22, ties on 6 and trails on 2 (windowed-CQR: 24, 5 and 1), consistent
+with the Sokoban column of Figure~\ref{fig:coverage} (0.51 for the self-report
+against 0.92 for the guard). On the same split the gate aborts none of the 16
+feasible test runs and recovers 4.9\% of doomed-run spend; Table~\ref{tab:token_abort}
+reports the five-seed means.
+
+\begin{table}[t]
+\centering
+\caption{The first held-out Sokoban rollout in the seed-0 test stream, turn by turn
+(Claude Opus 4.7, 2,500-token budget). \checkmark marks an interval that contains
+the true remaining spend. The last column is spend so far plus the guard's upper
+bound, which a deployer compares against the budget; the gate column is the
+feasibility score and the decision at $\delta{=}0.10$ (abort below 0.02).}
+\label{tab:case_study}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{rrrlllr}
+\toprule
+Turn & Spent & True rem. & Agent self-report & Guard interval (split-CQR) & Spent + upper & Gate \\
+\midrule
+1 & 557 & 1,090 & [1,000, 1,800] \checkmark & [460, 1,582] \checkmark & 2,139 $\leq$ 2,500 & 0.99 continue \\
+2 & 1,076 & 571 & [600, 1,200] $\times$ & [210, 1,102] \checkmark & 2,178 $\leq$ 2,500 & 0.95 continue \\
+3 & 1,380 & 267 & [400, 900] $\times$ & [162, 902] \checkmark & 2,282 $\leq$ 2,500 & 0.99 continue \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Optional figure (meeting: "if space allows, a figure at the beginning to show how
+% the framework processed it"). Same rollout as the table; figures/case_study_sokoban.png.
+% If used, the table above can drop to the appendix, or vice versa; both is redundant.
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.7\linewidth]{figures/case_study_sokoban.png}
+\caption{The same Sokoban rollout as Table~\ref{tab:case_study}. Grey bars are the
+agent's self-reported remaining-token interval at each turn, green bars the guard's
+split-CQR interval, black dots the true remaining spend, and the dashed red line the
+budget still available. The self-report drifts above the truth after turn 1; the
+guard's interval tracks it and stays under the remaining budget throughout, and the
+gate (scores under each turn) says continue at every step.}
+\label{fig:case_study}
+\end{figure}
+
+% Two sentences for Section 6 (Discussion and limitations), if the example goes in:
+% "The worked example in Section 5.1 also shows what the guard does not do: its
+% intervals are roughly twice as wide as the agent's, and the price of a calibrated
+% answer is a less precise one. Where a deployer only needs a yes-or-no on whether
+% the run still fits, that width costs nothing; where a tight point estimate
+% matters, the interval is a bound, not a forecast."

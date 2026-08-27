@@ -210,3 +210,53 @@ Status: a proposal. Anna owns the abstract, introduction and results text under 
 team's split, and the mentors asked for the claims to be agreed; the rewrite should go
 to the channel as "here is a draft implementing the claims list" rather than replace
 the live project unilaterally.
+
+## 8 — 2026-08-27: full audit of the rewrite as compiled on Overleaf (review: `drafts/2026-08-27_rewrite_review.md`)
+
+Reviewed the Overleaf compile of the rewrite (24 pp, 26 Aug 23:59; source identical to
+`drafts/2026-08-26_rewrite_v2_main.tex`) for numbers, cross-references, layout and
+narrative flow. Both checkers pass (46/46); every claim the checkers do not cover
+(breadth counts, worked example, sharpness ratios, swap-column means in Table 2, cap
+trade-offs, Cost-of-Pass reduction, gated and censored ranges, all appendix tables)
+was traced by hand to `tables/*.csv` and holds. All references cited, all labels
+resolve, no em dashes, load-bearing wording from `CLAIMS_EVIDENCE.md` intact.
+
+**Found:** (1) §6 "intervals roughly twice as wide as the agent's" is wrong; Table 6
+gives 1.40–1.49×. The sentence came from entry 6's insertion, so the error is this
+log's own. (2) §3 says the guard "wraps [the agent's] estimate in a guarantee"; the
+layer wraps the guard's predictor, and the estimate is at most a feature. (3) The
+abstract's "sharper than a feature-free baseline" drops the "two of three
+environments" that §5.1 states. (4) Checklist Q1 and Q2, carried byte-identical from
+the base, describe an abstract and a §6 that the rewrite changed. (5) §5.4's "meaningful
+savings only at 19–55% false aborts" hides that those caps save 4–15%. Flow: prefix,
+rollout and feasibility score are used before they are defined; the same score's two
+jobs (abstain per prefix, abort per run) are never stated together; the revision-history
+admission sits in the introduction; the findings are restated four times.
+
+**Proposed, not applied:** 16 sentence-level edits (C1–C8 corrections, F1–F4 flow, L1
+layout) in `drafts/2026-08-27_rewrite_v3_candidate.tex`, produced from the 26 Aug
+rewrite by `drafts/tools/apply_rewrite_v3_edits.py` (exact-anchor replacements, byte
+for byte). Candidate compile: 24 pages, main text ends on page 9 three lines earlier
+than the base, the pre-existing 62pt overfull box in Table 10 removed, no warnings.
+The revision-history admission moves from §1 to C.2 (F1b); if accepted, its "where
+cited" pointer in `CLAIMS_EVIDENCE.md` must move with it. Also recorded for the team,
+unchanged: Figure 3's bar labels are unreadable at print size; Appendix B's `[t]` tables
+land under Appendix C headings (a float barrier costs a page and does not fix it).
+Slack as of this pass: no team comment on the rewrite since Charlotte's 21:17 note.
+
+## 9 — 2026-08-27: entry 8's edits accepted; v3 is the current draft
+
+All sixteen proposed edits (C1–C8, F1/F1b–F4, L1) are accepted after re-verifying the
+two numeric findings against the tables (worked-example width ratios 1.40 / 1.49 /
+1.48; dollar caps at 19–55% false aborts save 3.8 / 8.1 / 15.3%). Two adjustments:
+C3 puts the token-task numbers back into the abstract ("the same gate saves only 7.1%
+and 3.1%") rather than "far less", because the verified 24 Aug abstract carried them
+and dropping them is the cherry-pick Charlotte warned against; C7 is reworded to
+match. O2 taken (Figure 1 now says "in the appendix"). O1, O3–O7 left for the team.
+The F1b pointer in `CLAIMS_EVIDENCE.md` now cites Appendix C.2.
+
+Result: `drafts/2026-08-27_rewrite_v3_main.tex` (candidate plus the three edits above),
+compiled locally: 24 pages, no unresolved references, zero overfull boxes, no em
+dashes; main text ends on page 9 with the references heading and one entry at its
+foot. Bundle `drafts/BudgetGuard_Overleaf_REWRITE_2026-08-27_0024.zip` (also copied to
+~/Downloads). Still a proposal pending team sign-off in Slack.

@@ -17,3 +17,12 @@ Rewrite (2026-08-26, narrative restructure, all numbers unchanged):
 `2026-08-26_rewrite_v2_maintext.tex` is the hand-written main text (abstract through
 conclusion); the assembler keeps everything else from the base byte-for-byte and adds
 the worked-example table to Appendix B. Bundle: `BudgetGuard_Overleaf_REWRITE_2026-08-26.zip`.
+
+Review candidate (2026-08-27, sentence-level corrections and flow edits, no number moved):
+
+    cp ../2026-08-26_rewrite_v2_main.tex ../2026-08-27_rewrite_v3_candidate.tex
+    python3 apply_rewrite_v3_edits.py ../2026-08-27_rewrite_v3_candidate.tex
+
+Each edit is one exact-anchor replacement keyed by the IDs in
+`../2026-08-27_rewrite_review.md`; delete an entry to reject that edit. Compile check:
+24 pages, conclusion on page 9 (F4 pays for F1–F3), zero overfull boxes.

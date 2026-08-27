@@ -57,7 +57,7 @@ you cannot reach the fact — hence this registry.
 |---|---|---|---|
 | "Earlier drafts of this work called the method SPCI; that overclaims, because SPCI fits a quantile regression on the residual series" | C.4 (submission) | Git history; CHANGES_since_approved_draft.md §2.10 | documented |
 | "Averaging per-seed interval endpoints, which an earlier revision did, is not a confidence interval at any level" | C.6 (submission) | Git history; checklist Q7 justification (submission) | documented |
-| 2026-07-21 audit retracted the per-prefix "self-heals to 0.90" claim; rollout-safe evaluation is the claim to cite | docs/results_explained.md | That audit; `tables/transfer_env.csv` shows the rollout-safe numbers | documented |
+| 2026-07-21 audit retracted the per-prefix "self-heals to 0.90" claim; rollout-safe evaluation is the claim to cite. In the paper: "An earlier revision of this evaluation revealed labels per prefix; correcting it lowered the headline cross-environment recovery ... from 0.90 to 0.80" | docs/results_explained.md; rewrite Appendix C.2 (moved there from §1 on 2026-08-27, edit F1b) | That audit; `tables/transfer_env.csv` shows the rollout-safe numbers | documented |
 
 ### Numbers quoted from cited papers (not our experiments)
 

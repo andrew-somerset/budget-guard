@@ -43,9 +43,10 @@ def group_bar_width(n_series: int, group_span: float = 0.82) -> float:
 def nominal_line(ax, alpha: float, color: str = "#4A5361", zorder: float = 4.0):
     """Draw the 1-alpha reference line, labelled via the legend (never on the canvas)."""
     level = 1 - alpha
-    x0, x1 = ax.get_xlim()
-    ax.plot([x0, x1], [level, level], color=color, lw=1.2, ls="--", zorder=zorder,
-            solid_capstyle="butt", label=f"nominal {level:.2f}")
+    # axhline spans the full axes width regardless of when x-limits are set,
+    # so the reference line no longer stops partway across the plot.
+    ax.axhline(level, color=color, lw=1.2, ls="--", zorder=zorder,
+               label=f"nominal {level:.2f}")
 
 
 def figure_title(main: str, subtitle: str = "") -> str:

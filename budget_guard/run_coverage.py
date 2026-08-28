@@ -194,7 +194,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA)
                         ha="center", va="bottom", fontsize=6.5, rotation=90)
     nominal_line(ax, alpha)
     ax.set_xticks(xs, envs)
-    ax.set_ylim(0, 1.20)
+    ax.set_ylim(0, 1.08)
     ax.set_ylabel("marginal coverage")
     title = figure_title(
         "Remaining-budget interval coverage: BAGEN agent vs conformal guard",

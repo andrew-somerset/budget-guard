@@ -105,7 +105,7 @@ def main() -> None:
             " online methods recalibrate from these alone",
             ha="center", va="top", fontsize=7.4, color=ORANGE, linespacing=1.4)
 
-    ax.text(0.015, 0.985, "training-free  •  model-agnostic  •  CPU-only",
+    ax.text(0.015, 0.985, "no LLM training  •  model-agnostic  •  CPU-only",
             ha="left", va="top", fontsize=7.8, color=GRAY)
 
     os.makedirs(OUT, exist_ok=True)

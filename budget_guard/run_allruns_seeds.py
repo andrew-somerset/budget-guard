@@ -9,7 +9,8 @@ baseline so breadth covers that comparison too.
 
 run_allruns.py and tables/allruns.csv are untouched (the paper's seed-0 numbers and
 their checker stay as they are). Writes tables/allruns_seeds.csv (per run, mean over
-seeds), tables/allruns_seeds_per_seed.csv, and tables/allruns_seeds_counts.csv.
+seeds), tables/allruns_seeds_per_seed.csv, tables/allruns_seeds_counts.csv, and
+tables/allruns_seeds_avg_counts.csv (runs whose seed-average clears 0.85 / 0.90).
 
 Usage: python -m budget_guard.run_allruns_seeds
 """
@@ -76,10 +77,21 @@ def main(seeds: tuple[int, ...] = SEEDS, alpha: float = DEFAULT_ALPHA) -> pd.Dat
     per_run.to_csv("tables/allruns_seeds.csv", index=False)
     counts.to_csv("tables/allruns_seeds_counts.csv", index=False)
 
+    # Per-run average over seeds: how many of the runs clear 0.85 / 0.90 on average.
+    avg_counts = pd.DataFrame([
+        {"method": m, "n_runs": len(per_run),
+         "mean_ge085": int((per_run[f"{m}_mean"] >= 0.85).sum()),
+         "mean_ge090": int((per_run[f"{m}_mean"] >= 0.90).sum())}
+        for m in METHODS
+    ])
+    avg_counts.to_csv("tables/allruns_seeds_avg_counts.csv", index=False)
+
     with pd.option_context("display.width", 220, "display.max_columns", 50):
         print(per_run.round(3).to_string(index=False))
         print("\nruns clearing 0.85 / 0.90, per seed:")
         print(counts.to_string(index=False))
+        print("\nruns whose 5-seed AVERAGE clears 0.85 / 0.90:")
+        print(avg_counts.to_string(index=False))
     print("\nwrote tables/allruns_seeds.csv, tables/allruns_seeds_per_seed.csv, "
           "tables/allruns_seeds_counts.csv")
     return per_run

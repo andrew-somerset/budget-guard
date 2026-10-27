@@ -131,6 +131,34 @@ def cqr_split(X_train, y_train, X_cal, y_cal, X_test, alpha=DEFAULT_ALPHA):
     return _clip_nonneg(lo), hi, {"qhat": qhat}
 
 
+def cqr_split_rollout(X_train, y_train, X_cal, y_cal, groups_cal, X_test, alpha=DEFAULT_ALPHA):
+    """Rollout-level split-CQR: ONE calibration score per rollout (its worst prefix).
+
+    ``cqr_split`` pools every calibration prefix into one quantile, but prefixes of
+    one rollout share a final total and are dependent, so the pooled quantile is not
+    the object the finite-sample guarantee is about. Here each calibration rollout
+    contributes only its MAX CQR score. If rollouts are exchangeable, then with
+    probability >= 1-alpha a new rollout's intervals contain y at EVERY one of its
+    prefixes (simultaneous within-run coverage; cf. Dunn, Wasserman & Ramdas 2023,
+    two-layer hierarchical conformal). Same construction as
+    ``economic.calibrate_lower_bound``. Wider than pooled split-CQR by design; with
+    fewer than ceil(1/alpha) - 1 calibration rollouts qhat is +inf (fail-safe).
+    """
+    groups_cal = np.asarray(groups_cal)
+    y_cal = np.asarray(y_cal, dtype=float)
+    if len(groups_cal) != len(y_cal):
+        raise ValueError("groups_cal must have one rollout id per calibration row")
+    mlo, mhi = _fit_cqr(X_train, y_train, alpha)
+    scores = _cqr_scores(mlo.predict(X_cal), mhi.predict(X_cal), y_cal)
+    rollout_ids, inverse = np.unique(groups_cal, return_inverse=True)
+    rollout_max = np.full(len(rollout_ids), -np.inf)
+    np.maximum.at(rollout_max, inverse, scores)
+    qhat = _finite_sample_quantile(rollout_max, alpha)
+    lo = mlo.predict(X_test) - qhat
+    hi = mhi.predict(X_test) + qhat
+    return _clip_nonneg(lo), hi, {"qhat": qhat, "n_cal_rollouts": len(rollout_ids)}
+
+
 def aci_cqr(
     X_train, y_train, X_cal, y_cal, X_test, y_test,
     alpha=DEFAULT_ALPHA, gamma: float = 0.01,

@@ -5,11 +5,12 @@ import pytest
 from budget_guard.conformal import (
     aci_cqr,
     cqr_split,
+    cqr_split_rollout,
     spci,
     split_conformal_absres,
 )
 from budget_guard.features import LEAK_COLUMNS, build_xy
-from budget_guard.metrics import marginal_coverage, mean_width
+from budget_guard.metrics import marginal_coverage, mean_width, rollout_coverage
 from budget_guard.split import group_split
 
 
@@ -126,3 +127,31 @@ def test_features_are_leak_free_and_finite():
     assert np.isfinite(X.to_numpy()).all()
     assert (y == df["y"].to_numpy()).all()
     assert (groups == df["rollout_index"].to_numpy()).all()
+
+
+def _synthetic_rollouts(n_rollouts=1000, prefixes=5, seed=0):
+    """Rollouts whose prefixes share a rollout-level shock, so they are dependent."""
+    rng = np.random.default_rng(seed)
+    groups = np.repeat(np.arange(n_rollouts), prefixes)
+    shock = rng.normal(scale=1.5, size=n_rollouts)[groups]
+    X = pd.DataFrame({"a": rng.normal(size=len(groups)), "k": np.tile(np.arange(prefixes), n_rollouts)})
+    y = 3 * X["a"].to_numpy() + shock + rng.normal(scale=0.3, size=len(groups))
+    return X, y - y.min(), groups
+
+
+def test_rollout_cqr_covers_whole_runs():
+    """One score per calibration rollout -> ~1-alpha of test rollouts covered at every prefix."""
+    X, y, g = _synthetic_rollouts()
+    tr, ca, te = g < 500, (g >= 500) & (g < 750), g >= 750
+    lo, hi, info = cqr_split_rollout(X[tr], y[tr], X[ca], y[ca], g[ca], X[te])
+    assert info["n_cal_rollouts"] == 250
+    run_cov = rollout_coverage(y[te], lo, hi, g[te])
+    assert run_cov >= 0.84, f"rollout-level coverage {run_cov}"
+    # covering whole runs is stricter, so per-prefix coverage should sit above nominal
+    assert marginal_coverage(y[te], lo, hi) >= 0.90
+
+
+def test_rollout_cqr_rejects_mismatched_groups():
+    X, y, g = _synthetic_rollouts(n_rollouts=50)
+    with pytest.raises(ValueError):
+        cqr_split_rollout(X[:100], y[:100], X[100:200], y[100:200], g[100:150], X[200:])

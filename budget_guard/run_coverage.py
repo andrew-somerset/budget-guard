@@ -24,6 +24,7 @@ from .conformal import (
     cqr_split_rollout,
     dtaci,
     split_conformal_absres,
+    total_minus_spent,
     tune_gamma,
     windowed_cqr,
 )
@@ -78,6 +79,11 @@ def run_env(env: str, seed: int = 0, alpha: float = DEFAULT_ALPHA) -> list[dict]
 
     intervals = {}
     intervals["constant-quantile"] = constant_quantile(yca, len(yte), alpha=alpha)[:2]
+    # No-learning arithmetic baseline reviewers asked for. Not in METHOD_COLORS,
+    # so the headline figure is unchanged; table rows only.
+    spent = X["tokens_so_far"].to_numpy(dtype=float)
+    intervals["total-minus-spent"] = total_minus_spent(
+        spent[tr], ytr, groups[tr], spent[ca], yca, spent[te], alpha=alpha)[:2]
     intervals["split-absres"] = split_conformal_absres(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2]
     intervals["split-CQR"] = cqr_split(Xtr, ytr, Xca, yca, Xte, alpha=alpha)[:2]
     # One score per calibration rollout (its worst prefix): the guaranteed object.

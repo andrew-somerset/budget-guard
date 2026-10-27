@@ -308,6 +308,37 @@ def constant_quantile(y_cal, n_test: int, alpha=DEFAULT_ALPHA):
     return np.full(n_test, max(lo, 0.0)), np.full(n_test, hi), {}
 
 
+def total_minus_spent(spent_train, y_train, groups_train, spent_cal, y_cal, spent_test,
+                      alpha=DEFAULT_ALPHA):
+    """No-learning arithmetic baseline: "a calibrated total, minus what's spent so far".
+
+    Reviewers (2NSH, Hut2, V41W, Kz1h, nwZq) asked whether the learned features earn
+    their place against this rule. It takes the [alpha/2, 1-alpha/2] quantiles of
+    run TOTALS on the train split (one total per rollout, so long runs are not
+    over-counted), subtracts spend so far, then conformalizes on the calibration
+    split exactly like split-CQR (pooled, finite-sample corrected) so the comparison
+    is apples to apples. Unlike ``constant_quantile`` it uses spend so far; unlike
+    split-CQR it learns nothing. Once a run has spent past the typical total, its
+    upper end can fall to 0: that is the rule's real weakness, not a bug.
+    """
+    spent_train = np.asarray(spent_train, dtype=float)
+    y_train = np.asarray(y_train, dtype=float)
+    groups_train = np.asarray(groups_train)
+    _, first = np.unique(groups_train, return_index=True)
+    totals = spent_train[first] + y_train[first]          # remaining = total - spent
+    t_lo = float(np.quantile(totals, alpha / 2))
+    t_hi = float(np.quantile(totals, 1 - alpha / 2))
+
+    spent_cal = np.asarray(spent_cal, dtype=float)
+    scores = _cqr_scores(t_lo - spent_cal, t_hi - spent_cal, np.asarray(y_cal, dtype=float))
+    qhat = _finite_sample_quantile(scores, alpha)
+
+    spent_test = np.asarray(spent_test, dtype=float)
+    lo = _clip_nonneg(t_lo - spent_test - qhat)
+    hi = np.maximum(t_hi - spent_test + qhat, lo)  # never below lo (or below 0)
+    return lo, hi, {"qhat": qhat, "total_lo": t_lo, "total_hi": t_hi}
+
+
 def dtaci(
     X_train, y_train, X_cal, y_cal, X_test, y_test,
     alpha=DEFAULT_ALPHA,

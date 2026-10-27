@@ -8,6 +8,7 @@ from budget_guard.conformal import (
     cqr_split_rollout,
     spci,
     split_conformal_absres,
+    total_minus_spent,
 )
 from budget_guard.features import LEAK_COLUMNS, build_xy
 from budget_guard.metrics import marginal_coverage, mean_width, rollout_coverage
@@ -155,3 +156,20 @@ def test_rollout_cqr_rejects_mismatched_groups():
     X, y, g = _synthetic_rollouts(n_rollouts=50)
     with pytest.raises(ValueError):
         cqr_split_rollout(X[:100], y[:100], X[100:200], y[100:200], g[100:150], X[200:])
+
+
+def test_total_minus_spent_is_calibrated_on_exchangeable_runs():
+    """Runs with random totals, observed at several prefixes: the arithmetic rule,
+    conformalized like split-CQR, should land near nominal per-prefix coverage."""
+    rng = np.random.default_rng(1)
+    n_runs, k = 1200, 4
+    totals = rng.gamma(shape=4.0, scale=500.0, size=n_runs)
+    g = np.repeat(np.arange(n_runs), k)
+    frac = np.tile(np.arange(1, k + 1) / (k + 1), n_runs)
+    spent = totals[g] * frac
+    y = totals[g] - spent
+    tr, ca, te = g < 600, (g >= 600) & (g < 900), g >= 900
+    lo, hi, info = total_minus_spent(spent[tr], y[tr], g[tr], spent[ca], y[ca], spent[te])
+    assert info["total_lo"] < info["total_hi"]
+    assert (lo >= 0).all() and (hi >= lo).all()
+    assert 0.85 <= marginal_coverage(y[te], lo, hi) <= 0.96

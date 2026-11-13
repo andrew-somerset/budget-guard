@@ -384,13 +384,16 @@ def joint_coverage(df: pd.DataFrame, test_mask: np.ndarray, intervals: dict) -> 
     """Per-resource and all-at-once coverage on the test rows, plus ``joint_run``: the
     share of test rollouts covered on all resources at EVERY prefix."""
     covered_all = np.ones(int(test_mask.sum()), dtype=bool)
+    unbounded_any = np.zeros(int(test_mask.sum()), dtype=bool)
     out = {}
     for res, (lo, hi) in intervals.items():
+        unbounded_any |= ~np.isfinite(np.asarray(hi, dtype=float))
         y = df.loc[test_mask, f"y_{res}"].to_numpy(dtype=float)
         covered = (lo <= y) & (y <= hi)
         out[res] = float(covered.mean())
         covered_all &= covered
     out["joint"] = float(covered_all.mean())
+    out["unbounded"] = float(unbounded_any.mean())
     per_run = pd.Series(covered_all).groupby(df.loc[test_mask, "rollout_index"].to_numpy()).all()
     out["joint_run"] = float(per_run.mean())
     return out

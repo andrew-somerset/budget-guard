@@ -64,6 +64,7 @@ def main(seeds: tuple[int, ...] = (0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA,
         **{c: (c, "mean") for c in list(RESOURCES) + ["joint"]},
         joint_std=("joint", "std"),
         joint_run=("joint_run", "mean"),
+        unbounded=("unbounded", "mean"),
     ).reset_index()
 
     os.makedirs("tables", exist_ok=True)

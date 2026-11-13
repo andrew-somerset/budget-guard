@@ -56,7 +56,7 @@ def main(seeds=(0, 1, 2, 3, 4), alpha: float = DEFAULT_ALPHA) -> pd.DataFrame:
         rows.append({"scheme": "agent self-report", "seed": seed,
                      "n": int(defined.sum()),
                      **overlap_stats(sub[defined].astype(bool).to_numpy())})
-        for scheme in ("independent", "bonferroni", "copula"):
+        for scheme in ("independent", "bonferroni", "copula", "bonferroni-rollout"):
             ivals = joint_intervals(df, masks, alpha=alpha, scheme=scheme)["intervals"]
             cov = np.column_stack([
                 (lo <= df.loc[te, f"y_{r}"].to_numpy(float)) & (df.loc[te, f"y_{r}"].to_numpy(float) <= hi)

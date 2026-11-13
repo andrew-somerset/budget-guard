@@ -173,3 +173,35 @@ def test_total_minus_spent_is_calibrated_on_exchangeable_runs():
     assert info["total_lo"] < info["total_hi"]
     assert (lo >= 0).all() and (hi >= lo).all()
     assert 0.85 <= marginal_coverage(y[te], lo, hi) <= 0.96
+
+
+def test_rollout_cqr_with_uneven_run_lengths_and_run_effects():
+    """Code review #9: runs of very different lengths, longer runs harder (a shared
+    run-level shock that grows with length). One score per calibration run must still
+    cover ~1-alpha of whole test runs."""
+    rng = np.random.default_rng(3)
+    lengths = rng.integers(1, 30, size=1200)
+    g = np.repeat(np.arange(len(lengths)), lengths)
+    shock = (rng.normal(size=len(lengths)) * (0.5 + lengths / 10))[g]
+    X = pd.DataFrame({"a": rng.normal(size=len(g)), "k": np.concatenate([np.arange(n) for n in lengths])})
+    y = 2 * X["a"].to_numpy() + shock + rng.normal(scale=0.3, size=len(g))
+    y = y - y.min()
+    tr, ca, te = g < 600, (g >= 600) & (g < 900), g >= 900
+    lo, hi, _ = cqr_split_rollout(X[tr], y[tr], X[ca], y[ca], g[ca], X[te])
+    assert rollout_coverage(y[te], lo, hi, g[te]) >= 0.84
+
+
+def test_windowed_cqr_runs_window_counts_runs():
+    from budget_guard.conformal import windowed_cqr_runs
+
+    X, y, g = _synthetic_rollouts(n_rollouts=300, prefixes=5, seed=4)
+    tr, ca, te = g < 150, (g >= 150) & (g < 225), g >= 225
+    lo, hi, info = windowed_cqr_runs(X[tr], y[tr], X[ca], y[ca], X[te], y[te], g[ca], g[te],
+                                     window_runs=10)
+    assert info["window_runs"] == 10
+    assert (lo >= 0).all() and (hi >= lo).all()
+    # every prefix of one test run shares one qhat (labels only after the run ends)
+    first = g[te] == g[te][0]
+    widths = (hi - lo)[first]
+    assert 0.80 <= marginal_coverage(y[te], lo, hi) <= 0.99
+    assert np.isfinite(widths).all()

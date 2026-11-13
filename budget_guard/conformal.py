@@ -308,6 +308,43 @@ def constant_quantile(y_cal, n_test: int, alpha=DEFAULT_ALPHA):
     return np.full(n_test, max(lo, 0.0)), np.full(n_test, hi), {}
 
 
+def windowed_cqr_runs(
+    X_train, y_train, X_cal, y_cal, X_test, y_test, groups_cal, groups_test,
+    alpha=DEFAULT_ALPHA, window_runs: int = 25,
+):
+    """windowed-CQR with a window of the last ``window_runs`` FINISHED ROLLOUTS.
+
+    ``windowed_cqr`` keeps the last 100 prefix scores, so a long run (about 62 prefixes
+    for Qwen on SWE-bench) fills most of the window by itself and the cutoff is set by
+    one or two runs; its warm start is also the last 100 calibration rows in table
+    order. Here the window holds whole rollouts: warm-started from the last
+    ``window_runs`` calibration rollouts, and each finished test rollout enters as one
+    block (rollout-safe: labels only after the rollout ends). The quantile is still
+    read from the pooled scores inside the window. Reported beside, not instead of,
+    the paper's windowed-CQR.
+    """
+    mlo, mhi = _fit_cqr(X_train, y_train, alpha)
+    cal_scores = _cqr_scores(mlo.predict(X_cal), mhi.predict(X_cal), np.asarray(y_cal, dtype=float))
+    groups_cal = np.asarray(groups_cal)
+    order = list(dict.fromkeys(groups_cal.tolist()))
+    runs = deque((cal_scores[groups_cal == g] for g in order), maxlen=window_runs)
+
+    groups_test = np.asarray(groups_test)
+    _require_contiguous_groups(groups_test)
+    qlo_test, qhi_test = mlo.predict(X_test), mhi.predict(X_test)
+    test_scores = _cqr_scores(qlo_test, qhi_test, np.asarray(y_test, dtype=float))
+    lo = np.empty(len(test_scores))
+    hi = np.empty(len(test_scores))
+    for g in dict.fromkeys(groups_test.tolist()):
+        idx = np.flatnonzero(groups_test == g)
+        pooled = np.concatenate(list(runs)) if runs else np.empty(0)
+        qhat = _finite_sample_quantile(pooled, alpha)
+        lo[idx] = qlo_test[idx] - qhat
+        hi[idx] = qhi_test[idx] + qhat
+        runs.append(test_scores[idx])  # the rollout has finished: its labels are real
+    return _clip_nonneg(lo), hi, {"window_runs": window_runs}
+
+
 def total_minus_spent(spent_train, y_train, groups_train, spent_cal, y_cal, spent_test,
                       alpha=DEFAULT_ALPHA):
     """No-learning arithmetic baseline: "a calibrated total, minus what's spent so far".
